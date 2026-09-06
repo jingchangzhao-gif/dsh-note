@@ -3,20 +3,27 @@
 ![CI](https://github.com/jingchangzhao-gif/dsh-note/actions/workflows/ci.yml/badge.svg)
 ![License](https://img.shields.io/npm/l/dsh-note)
 
-> Markdown note tools for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (`dsh`).
+> Long-term markdown memory for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (`dsh`) agents — remember, so you don't re-send.
 
-`dsh-note` is a small, dependency-free DeepSeek Harness plugin that gives the
-coding agent lightweight persistent notes in its workspace: read, list, append,
-and search markdown files. No network, no LLM calls — just plain files on disk.
+`dsh-note` is the coding agent's **durable memory**. Instead of carrying a long
+conversation (and re-paying tokens for it every turn), the agent writes the
+important parts to markdown files — decisions, current state, key facts — and
+recalls the relevant snippet later. Context stays small and on-demand, which
+**saves tokens** over a session.
+
+Dependency-free: plain markdown files on disk, no network, no extra services.
 
 ## Features
 
-| Tool           | What it does                                                    |
-| -------------- | --------------------------------------------------------------- |
-| `note_read`    | Read a note's text (optionally capped)                          |
-| `note_list`    | List markdown notes in the notes directory (default `./notes`) |
-| `note_append`  | Append a block to a note, creating it if missing                |
-| `note_search`  | Search notes for a term, returning file:line matches            |
+| Tool            | What it does                                                        |
+| --------------- | ------------------------------------------------------------------- |
+| `note_remember` | Append a memory snippet to a named note (creating it if missing)   |
+| `note_recall`   | Read back a note (full text or just the most recent part)          |
+| `note_list`     | List what's in memory (the note files + their first headings)      |
+| `note_forget`   | Remove a note / clear a memory entry                               |
+
+The idea: **remember the important stuff, forget the rest, and only pull back
+what you need** — so the prompt stays lean and token cost stays low.
 
 ## Installation
 
@@ -24,48 +31,52 @@ and search markdown files. No network, no LLM calls — just plain files on disk
 dsh plugin --profile web add dsh-note
 ```
 
-No API key or external credentials required.
+Memory files live in `./notes` under the session workspace by default; every
+tool accepts an optional `dir` override.
 
 ## Tool reference
 
-Notes live in `./notes` under the session workspace by default. Every tool
-accepts an optional `dir` override (absolute path) to point elsewhere.
+### `note_remember`
+
+```json
+{ "name": "session", "content": "Decided: use pnpm + merge commits on paired PRs." }
+```
+
+Creates the note if missing, otherwise appends after a `---` separator.
+
+### `note_recall`
+
+```json
+{ "name": "session", "tail": 2000 }
+```
+
+Returns `{ name, content }`. With `tail`, returns only the last N characters —
+enough to remember context without loading everything.
 
 ### `note_list`
 
 ```json
-{ "dir": "./notes" }
+{}
 ```
 
-Returns `{ dir, notes: [{ name, path, title }] }`, sorted by filename. `title`
-is the first `# ` heading of each note, if present.
+Returns `{ notes: [{ name, title }] }`, sorted by filename. Titles come from the
+first `# ` heading of each note.
 
-### `note_read`
+### `note_forget`
 
 ```json
-{ "name": "todo.md", "maxChars": 4000 }
+{ "name": "session" }
 ```
 
-Returns `{ name, content }`. `maxChars` caps the returned text (clamped to a
-100000 ceiling).
+Deletes the note file (no-op if it doesn't exist).
 
-### `note_append`
+## How it saves tokens
 
-```json
-{ "name": "todo.md", "content": "- [ ] add tests" }
-```
-
-Creates the note if missing, otherwise appends after a `---` separator.
-Returns `{ name, path }`.
-
-### `note_search`
-
-```json
-{ "term": "TODO" }
-```
-
-Returns `{ term, hits: [{ name, line, lineText }] }`, case-insensitive, across
-all notes.
+1. During work, the agent appends short memory notes (`note_remember`) instead of
+   echoing progress into the conversation.
+2. On later turns it pulls back only the recent part (`note_recall` with `tail`),
+   or searches its memory — never the whole history.
+3. Old/unneeded memory is dropped (`note_forget`), keeping stored context small.
 
 ## Development
 
