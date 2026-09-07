@@ -1,7 +1,7 @@
 # dsh-note
 
 ![CI](https://github.com/jingchangzhao-gif/dsh-note/actions/workflows/ci.yml/badge.svg)
-![License](https://img.shields.io/npm/l/dsh-note)
+![License](https://img.shields.io/github/license/jingchangzhao-gif/dsh-note)
 
 > Long-term markdown memory for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (`dsh`) agents — remember, so you don't re-send.
 
