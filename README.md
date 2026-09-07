@@ -78,6 +78,41 @@ Deletes the note file (no-op if it doesn't exist).
    or searches its memory — never the whole history.
 3. Old/unneeded memory is dropped (`note_forget`), keeping stored context small.
 
+## Cross-platform launcher
+
+`dsh-note` runs as a dsh plugin, but the same memory layer also works as a
+tiny command-line tool against a folder of notes. To keep it usable on both
+**Windows and macOS** without duplicating logic, write the launcher once in
+Node and ship thin per-OS shells that call it:
+
+```js
+// cli.mjs — runs on Windows and macOS alike
+import { resolveMemoryDir, listNotes } from "./lib/index.js"; // built output
+
+const dir = process.argv[2] ?? "notes";
+console.log("Memory in:", resolveMemoryDir(undefined, dir));
+for (const note of await listNotes(dir)) {
+  console.log(`- ${note.name}${note.title ? ` — ${note.title}` : ""}`);
+}
+```
+
+Windows — `run.bat`:
+
+```bat
+@echo off
+node cli.mjs %1
+```
+
+macOS — `run.command`:
+
+```sh
+#!/bin/bash
+node cli.mjs "$1"
+```
+
+Real logic lives once (in Node); the shells are just 2–3 line launchers, and
+`node:path` already handles the platform differences (`\` vs `/`).
+
 ## Development
 
 ```sh
