@@ -162,6 +162,60 @@ Cover, using a temp dir (`fs.mkdtemp(join(os.tmpdir(), "dsh-note-"))`):
 
 ---
 
+### Task 6: Cross-platform CLI launcher
+
+> Windows + macOS in one codebase: a Node `cli.mjs` is the real logic; `.bat` and `.command` are 2–3 line shells that call it. `node:path` already handles `\` vs `/`.
+
+**Files:**
+- Create: `cli.mjs`
+- Create: `run.bat` (Windows shell)
+- Create: `run.command` (macOS shell)
+- Modify: `package.json` (add `"bin": { "dsh-note": "./cli.mjs" }`)
+
+- [ ] **Step 1: Create `cli.mjs`**
+
+```js
+// Cross-platform launcher for dsh-note memory.
+// Usage: node cli.mjs [notes-directory]
+import { resolveMemoryDir, listNotes } from "./lib/index.js";
+
+const dir = process.argv[2] ?? "notes";
+console.log("Memory in:", resolveMemoryDir(undefined, dir));
+for (const note of await listNotes(dir)) {
+  console.log(`- ${note.name}${note.title ? ` — ${note.title}` : ""}`);
+}
+```
+
+- [ ] **Step 2: Create `run.bat`** (Windows)
+
+```bat
+@echo off
+node cli.mjs %1
+```
+
+- [ ] **Step 3: Create `run.command`** (macOS)
+
+```sh
+#!/bin/bash
+node cli.mjs "$1"
+```
+
+Then `chmod +x run.command` so it's double-click runnable on macOS.
+
+- [ ] **Step 4: Modify `package.json`** to add the bin entry:
+
+```json
+"bin": { "dsh-note": "./cli.mjs" }
+```
+
+- [ ] **Step 5: Verify**
+
+Run `pnpm build` (so `lib/` exists), then `node cli.mjs tests/notes-tmp-dir` prints notes from a dir. Confirm `cli.mjs` imports only the built output.
+
+- [ ] **Step 6: Commit** (co-author owner): `git commit -m "feat: add cross-platform CLI launcher" --trailer "Co-authored-by: <owner>"`.
+
+---
+
 ## Self-Review
 
 **Spec coverage:** memory framing → remember/recall/list/forget across Tasks 1–3; tests Task 4; README Task 5; scaffold Task 0. ✅
