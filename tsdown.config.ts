@@ -2,7 +2,7 @@ import type { UserConfig } from "tsdown";
 
 const lib: UserConfig = {
   name: "dsh-note",
-  entry: ["src/index.ts"],
+  entry: ["src/index.ts", "src/notes.ts"],
   outDir: "lib",
   format: ["esm"],
   platform: "node",

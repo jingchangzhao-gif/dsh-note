@@ -4,6 +4,7 @@
   "description": "Long-term markdown memory for DeepSeek Harness (dsh) agents — remember, so you don't re-send.",
   "type": "module",
   "main": "lib/index.js",
+  "bin": { "dsh-note": "./cli.mjs" },
   "exports": {
     ".": "./lib/index.js",
     "./package.json": "./package.json"
