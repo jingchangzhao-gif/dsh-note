@@ -188,23 +188,21 @@ const handlers = {
     const name = requireFlag(flags, "name", "note filename, e.g. session.md");
     const full = await api.readNoteFull(dir, name);
     if (flags.compact) {
-      const budget = 800;
       const body = full.body.trim();
-      const recent = body.length > budget ? `…${body.slice(-budget)}` : body;
+      const recent = api.compactTail(body);
       const summary = full.meta.summary;
       const content = summary ? `summary: ${summary}\n\n${recent}` : recent;
       if (flags.json)
-        return { json: { name: full.name, content, truncated: body.length > budget } };
+        return {
+          json: { name: full.name, content, truncated: body.length > api.COMPACT_BUDGET },
+        };
       return { text: content };
     }
     if (flags.tail !== undefined) {
-      const chars = Math.min(
-        Math.max(1, Math.round(numberFlag(flags, "tail", "--tail") ?? 1)),
-        100_000,
-      );
-      const raw = full.raw;
-      const content = raw.length <= chars ? raw : `…${raw.slice(-chars)}`;
-      if (flags.json) return { json: { name: full.name, content, truncated: raw.length > chars } };
+      const content = api.tailText(full.raw, numberFlag(flags, "tail", "--tail") ?? 1);
+      const chars = api.clampChars(numberFlag(flags, "tail", "--tail") ?? 1);
+      if (flags.json)
+        return { json: { name: full.name, content, truncated: full.raw.length > chars } };
       return { text: content };
     }
     if (flags.json) return { json: { name: full.name, content: full.raw, truncated: false } };

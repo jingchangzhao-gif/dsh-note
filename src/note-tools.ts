@@ -7,24 +7,21 @@ import { defineTool } from "@deepseek-ai/dsh-tools";
 import { buildContext } from "./context";
 import {
   appendNote,
+  clampChars,
+  COMPACT_BUDGET,
+  compactTail,
   deleteNote,
   editNote,
   isArchive,
   listNotes,
   readNoteFull,
   searchNotes,
+  tailText,
   writeNote,
   zoneRoot,
 } from "./notes";
 import type { NoteFile, Zone } from "./notes";
-
-interface ExecShape {
-  agent?: { session?: { header?: { cwd?: string } } };
-}
-
-function cwdOf(exec: ExecShape | undefined): string | undefined {
-  return exec?.agent?.session?.header?.cwd;
-}
+import { booleanOf, cwdOf, number, text, type ExecShape } from "./tool-util";
 
 function zoneDir(zone: Zone, cwd: string | undefined, dir?: string): string {
   return zoneRoot(zone, cwd, dir);
@@ -65,18 +62,6 @@ function toSummary(file: NoteFile): NoteSummary {
   if (file.meta.tags) out.tags = file.meta.tags;
   if (file.meta.updated) out.updated = file.meta.updated;
   return out;
-}
-
-function text(value: unknown): string | undefined {
-  return typeof value === "string" ? value : undefined;
-}
-
-function number(value: unknown): number | undefined {
-  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
-}
-
-function booleanOf(value: unknown): boolean | undefined {
-  return typeof value === "boolean" ? value : undefined;
 }
 
 export const noteRememberTool = defineTool({
@@ -149,18 +134,15 @@ export const noteRecallTool = defineTool({
     const zone = zoneDir("writing", cwdOf(exec as ExecShape | undefined), text(dir));
     const full = await readNoteFull(zone, name.trim());
     if (booleanOf(compact)) {
-      const budget = 800;
       const body = full.body.trim();
-      const recent = body.length > budget ? `…${body.slice(-budget)}` : body;
+      const recent = compactTail(body);
       const summary = text(full.meta.summary);
       const content = summary ? `summary: ${summary}\n\n${recent}` : recent;
-      return { name: full.name, content, truncated: body.length > budget };
+      return { name: full.name, content, truncated: body.length > COMPACT_BUDGET };
     }
     if (tail == null) return { name: full.name, content: full.raw, truncated: false };
-    const chars = Math.min(Math.max(1, Math.round(number(tail) ?? 1)), 100_000);
-    const raw = full.raw;
-    const content = raw.length <= chars ? raw : `…${raw.slice(-chars)}`;
-    return { name: full.name, content, truncated: raw.length > chars };
+    const content = tailText(full.raw, number(tail) ?? 1);
+    return { name: full.name, content, truncated: full.raw.length > clampChars(number(tail) ?? 1) };
   },
 });
 
