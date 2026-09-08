@@ -18,7 +18,7 @@ import {
   withFrontMatter,
 } from "./frontmatter";
 import type { FrontMeta } from "./frontmatter";
-import { ARCHIVE_MARK, ensureDir, listNotes, notePath, tokenize } from "./notes";
+import { ARCHIVE_MARK, ARCHIVE_TYPE, ensureDir, isArchive, listNotes, notePath, tokenize } from "./notes";
 
 export const DEFAULT_MEMORY_NOTE = "memory.md";
 
@@ -90,11 +90,6 @@ export interface CompactResult {
 
 const ENTRY_HEADING_RE = /^##[ \t]+/gm;
 const DATE_START_RE = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?/;
-
-/** A file is an archive when named *.archive.* or typed archive. */
-export function isArchive(name: string, meta: FrontMeta): boolean {
-  return meta.type === "archive" || name.includes(ARCHIVE_MARK);
-}
 
 function parseDateOrThrow(value: string | undefined, label: string): number | undefined {
   if (value === undefined || value === "") return undefined;
@@ -335,7 +330,7 @@ export async function compactMemory(
   const archiveMeta: FrontMeta = {
     ...existing,
     title: existing.title ?? `${stem} (archive)`,
-    type: "archive",
+    type: ARCHIVE_TYPE,
     created: existing.created ?? nowIso(),
     updated: nowIso(),
   };
