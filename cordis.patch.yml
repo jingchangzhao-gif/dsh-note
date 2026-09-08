@@ -1,4 +1,5 @@
-# dsh-git-tools bundle registration.
+# dsh-note bundle registration: mounts one instance of the note plugin when
+# this package joins a dsh profile's bundle stack (dsh plugin add dsh-note).
 - insert:
-    - id: git-tools
-      name: dsh-git-tools
+    - id: dsh-note
+      name: "dsh-note"

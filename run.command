@@ -1,6 +1,7 @@
 #!/bin/bash
-# dsh-note cross-platform launcher (macOS).
-# Usage: ./run.command [notes-directory]
-DIR="$(cd "$(dirname "$0")" && pwd)"
-cd "$DIR"
-exec node cli.mjs "$1"
+# dsh-note launcher (macOS): forwards every argument to the CLI.
+# Usage: ./run.command <command> [dir] [--flags...]
+#   e.g.  ./run.command list ~/notes
+#         ./run.command memory-recall ~/memory --query pnpm
+cd "$(dirname "$0")"
+exec node cli.mjs "$@"
