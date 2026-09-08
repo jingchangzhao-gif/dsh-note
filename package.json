@@ -16,6 +16,7 @@
     "format:check": "prettier --check .",
     "lint": "oxlint",
     "prepublishOnly": "pnpm run build",
+    "pretest": "pnpm build",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
