@@ -6,10 +6,10 @@
 import { defineTool } from "@deepseek-ai/dsh-tools";
 import { buildContext } from "./context";
 import {
-  ARCHIVE_MARK,
   appendNote,
   deleteNote,
   editNote,
+  isArchive,
   listNotes,
   readNoteFull,
   searchNotes,
@@ -197,9 +197,7 @@ export const noteListTool = defineTool({
     const root = zoneDir(zone, cwdOf(exec as ExecShape | undefined), text(dir));
     const all = await listNotes(root);
     const notes = (
-      zone === "memory"
-        ? all.filter((f) => !(f.meta.type === "archive" || f.name.includes(ARCHIVE_MARK)))
-        : all
+      zone === "memory" ? all.filter((f) => !isArchive(f.name, f.meta)) : all
     ).map(toSummary);
     return { zone, dir: root, notes };
   },
@@ -352,15 +350,13 @@ export const noteSearchTool = defineTool({
     const limitNum = Math.max(1, Math.min(Math.round(number(limit) ?? 10), 50));
     const writingRoot = zoneDir("writing", cwd, text(dir));
     const memoryRoot = zoneDir("memory", cwd, undefined);
-    const isArchiveHit = (hit: { name: string; meta: { type?: string } }): boolean =>
-      hit.meta.type === "archive" || hit.name.includes(ARCHIVE_MARK);
     const zones =
       zone === "all" ? [writingRoot, memoryRoot] : [zoneDir(zone as Zone, cwd, text(dir))];
     const hits = [];
     for (const root of zones) {
       const found = await searchNotes(root, query.trim(), { limit: limitNum });
       for (const hit of found) {
-        if (root === memoryRoot && isArchiveHit(hit)) continue;
+        if (root === memoryRoot && isArchive(hit.name, hit.meta)) continue;
         const slim = { name: hit.name, snippet: hit.snippet, score: hit.score } as Record<
           string,
           unknown

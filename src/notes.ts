@@ -61,6 +61,12 @@ export const DEFAULT_ZONES: Record<Zone, string> = { writing: "notes", memory: "
 
 /** Marks compacted long-term memory files; they are excluded from recalls. */
 export const ARCHIVE_MARK = ".archive.";
+export const ARCHIVE_TYPE = "archive";
+
+/** A file is an archive when named *.archive.* or typed archive. */
+export function isArchive(name: string, meta: FrontMeta): boolean {
+  return meta.type === ARCHIVE_TYPE || name.includes(ARCHIVE_MARK);
+}
 
 const HEAD_CHUNK = 16 * 1024;
 
@@ -110,14 +116,6 @@ export function tokenize(query: string): string[] {
     .toLowerCase()
     .split(/[^\p{L}\p{N}]+/u)
     .filter((word) => word.length > 0);
-}
-
-export function parseTags(value: string | undefined): string[] {
-  if (!value) return [];
-  return value
-    .split(",")
-    .map((tag) => tag.trim())
-    .filter((tag) => tag.length > 0);
 }
 
 export function firstHeading(text: string): string | undefined {

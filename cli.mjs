@@ -160,9 +160,7 @@ const handlers = {
     const dir = zoneOf("writing", positional[0]);
     let notes = await api.listNotes(dir);
     if (!flags.all) {
-      notes = notes.filter(
-        (note) => note.meta.type !== "archive" && !note.name.includes(api.ARCHIVE_MARK),
-      );
+      notes = notes.filter((note) => !api.isArchive(note.name, note.meta));
     }
     if (flags.json) return { json: notes };
     const lines = [`Notes in ${dir} (${notes.length}):`];
@@ -248,7 +246,7 @@ const handlers = {
     const hits = await api.searchNotes(dir, query, { limit });
     const visible = flags.all
       ? hits
-      : hits.filter((hit) => hit.meta.type !== "archive" && !hit.name.includes(api.ARCHIVE_MARK));
+      : hits.filter((hit) => !api.isArchive(hit.name, hit.meta));
     if (flags.json) return { json: { query, dir, hits: visible } };
     if (visible.length === 0) return { text: "No matches." };
     const lines = visible.map(
