@@ -68,6 +68,27 @@ export function isArchive(name: string, meta: FrontMeta): boolean {
   return meta.type === ARCHIVE_TYPE || name.includes(ARCHIVE_MARK);
 }
 
+// Character-budget constants and helpers shared by the recall tools and the CLI
+// so the "last N chars" and "compact recent view" rules live in one place.
+export const MAX_TEXT_CHARS = 100_000;
+export const COMPACT_BUDGET = 800;
+
+/** Clamp a requested character count into the sane [1, MAX_TEXT_CHARS] range. */
+export function clampChars(value: number): number {
+  return Math.min(Math.max(1, Math.round(value)), MAX_TEXT_CHARS);
+}
+
+/** Return the last `chars` characters, elided with a leading ellipsis when cut. */
+export function tailText(raw: string, chars: number): string {
+  const c = clampChars(chars);
+  return raw.length <= c ? raw : `…${raw.slice(-c)}`;
+}
+
+/** A short recent view of a body for compact recall (summary already shown). */
+export function compactTail(body: string, budget = COMPACT_BUDGET): string {
+  return body.length > budget ? `…${body.slice(-budget)}` : body;
+}
+
 const HEAD_CHUNK = 16 * 1024;
 
 /** Resolve a zone root from cwd and an optional override directory. */
@@ -214,8 +235,7 @@ export async function readNote(zoneDir: string, name: string, tail?: number): Pr
   const path = notePath(zoneDir, name);
   const raw = await fs.readFile(path, "utf8");
   if (tail == null) return raw;
-  const chars = Math.min(Math.max(1, Math.round(tail)), 100_000);
-  return raw.length <= chars ? raw : `…${raw.slice(-chars)}`;
+  return tailText(raw, tail);
 }
 
 /** Read a note split into meta + body (raw text included). */
