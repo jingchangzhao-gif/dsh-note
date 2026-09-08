@@ -1,7 +1,7 @@
 {
   "name": "dsh-note",
-  "version": "0.1.0",
-  "description": "Long-term markdown memory for DeepSeek Harness (dsh) agents — remember, so you don't re-send.",
+  "version": "0.2.0",
+  "description": "Long-term markdown memory for DeepSeek Harness (dsh) agents — a writing-notes zone plus a memory bank with easy front matter, free local search, full edit/update and tail-first compact recall. Remember, so you don't re-send.",
   "type": "module",
   "main": "lib/index.js",
   "bin": { "dsh-note": "./cli.mjs" },
@@ -16,6 +16,7 @@
     "format:check": "prettier --check .",
     "lint": "oxlint",
     "prepublishOnly": "pnpm run build",
+    "pretest": "pnpm build",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
@@ -35,5 +36,10 @@
     "node": ">=18"
   },
   "keywords": ["dsh", "deepseek-harness", "memory", "notes", "agent"],
-  "license": "MIT"
+  "license": "MIT",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
 }

@@ -5,3 +5,5 @@ dist/
 .DS_Store
 .env
 .env.*
+1.txt
+*.zip
