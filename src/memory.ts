@@ -88,8 +88,17 @@ export interface CompactResult {
   archive: string;
 }
 
-const ENTRY_HEADING_RE = /^##[ \t]+/gm;
+// Only a "## <date>" line starts an entry. Any other "## " heading belongs to
+// the entry above it — an entry's content is markdown too, and a plan entry
+// legitimately contains "## Step one". Splitting on every heading used to
+// shred such an entry into fake timestamp-less entries and reorder them.
+const ENTRY_HEADING_RE = /^##[ \t]+(\S+)/gm;
 const DATE_START_RE = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?/;
+
+/** True when an entry heading's first token is a parseable ISO-ish date. */
+function isEntryDate(token: string): boolean {
+  return DATE_START_RE.test(token) && !Number.isNaN(Date.parse(token));
+}
 
 function parseDateOrThrow(value: string | undefined, label: string): number | undefined {
   if (value === undefined || value === "") return undefined;
@@ -106,14 +115,18 @@ function clampInt(value: number | undefined, fallback: number, min: number, max:
 
 /** Split a memory file body into preamble + chronological entry blocks. */
 export function parseMemory(text: string): ParsedMemory {
-  const matches = Array.from(text.matchAll(ENTRY_HEADING_RE));
-  if (matches.length === 0) return { preamble: text.trim(), entries: [] };
-  const preamble = text.slice(0, matches[0].index).trim();
+  const starts: number[] = [];
+  for (const match of text.matchAll(ENTRY_HEADING_RE)) {
+    if (match.index === undefined) continue;
+    if (!isEntryDate(match[1])) continue;
+    starts.push(match.index);
+  }
+  if (starts.length === 0) return { preamble: text.trim(), entries: [] };
+  const preamble = text.slice(0, starts[0]).trim();
   const entries: MemoryEntry[] = [];
-  for (let i = 0; i < matches.length; i += 1) {
-    const start = matches[i].index;
-    const end = i + 1 < matches.length ? matches[i + 1].index : text.length;
-    const block = text.slice(start, end).trim();
+  for (let i = 0; i < starts.length; i += 1) {
+    const end = i + 1 < starts.length ? starts[i + 1] : text.length;
+    const block = text.slice(starts[i], end).trim();
     if (block) entries.push(entryFromBlock(block));
   }
   return { preamble, entries };
@@ -125,18 +138,11 @@ function entryFromBlock(block: string): MemoryEntry {
     .replace(/^##[ \t]+/, "")
     .trim();
   const firstToken = headingLine.split(/\s+/)[0] ?? "";
-  const whenMs =
-    DATE_START_RE.test(firstToken) && !Number.isNaN(Date.parse(firstToken))
-      ? Date.parse(firstToken)
-      : 0;
+  const whenMs = isEntryDate(firstToken) ? Date.parse(firstToken) : 0;
   return { when: whenMs ? firstToken : undefined, whenMs, text: block };
 }
 
-async function ensureMemoryNote(
-  zoneDir: string,
-  name: string,
-  patch: FrontMeta,
-): Promise<{ path: string }> {
+async function ensureMemoryNote(zoneDir: string, name: string): Promise<{ path: string }> {
   const path = notePath(zoneDir, name);
   try {
     await fs.access(path);
@@ -150,7 +156,6 @@ async function ensureMemoryNote(
     type: "memory",
     created: nowIso(),
     updated: nowIso(),
-    ...patch,
   };
   await ensureDir(dirname(path));
   await fs.writeFile(path, withFrontMatter(meta, ""), "utf8");
@@ -178,7 +183,10 @@ export async function addMemoryEntry(
   if (options.title) patch.title = options.title.trim();
   if (options.tags) patch.tags = formatTagsList(parseTagsList(options.tags));
   if (options.type) patch.type = options.type.trim();
-  const { path } = await ensureMemoryNote(zoneDir, name, patch);
+  const { path } = await ensureMemoryNote(zoneDir, name);
+  // Merge onto the file whether it was just created or already existed: before,
+  // tags/type/title were only applied to a NEW file and silently dropped later.
+  if (Object.keys(patch).length > 0) await updateMemoryMeta(zoneDir, name, patch);
   const when = options.when ?? nowIso();
   const block = `## ${when}${options.title ? ` — ${options.title}` : ""}\n\n${body}`;
   await fs.appendFile(path, `\n${block}\n`, "utf8");
@@ -196,7 +204,9 @@ export async function recallMemory(
   options: RecallOptions = {},
 ): Promise<RecallResult> {
   const words = tokenize(options.query ?? "");
-  const wantTags = parseTagsList(options.tags);
+  // Tag matching ignores case ("Alpha" on the file matches tags: "alpha"), the
+  // way the keyword filter already does.
+  const wantTags = parseTagsList(options.tags).map((tag) => tag.toLowerCase());
   const newerMs = parseDateOrThrow(options.newerThan, "newerThan");
   const olderMs = parseDateOrThrow(options.olderThan, "olderThan");
   const limit = clampInt(options.limit, 10, 1, 100);
@@ -220,9 +230,8 @@ export async function recallMemory(
     }
     const fm = parseFrontMatter(raw);
     if (isArchive(file.name, fm.meta)) continue;
-    if (wantTags.length > 0 && !wantTags.some((tag) => parseTagsList(fm.meta.tags).includes(tag))) {
-      continue;
-    }
+    const fileTags = parseTagsList(fm.meta.tags).map((tag) => tag.toLowerCase());
+    if (wantTags.length > 0 && !wantTags.some((tag) => fileTags.includes(tag))) continue;
     if (options.type && fm.meta.type !== options.type) continue;
     const parsed = parseMemory(fm.body);
     const matched: MemoryEntry[] = [];

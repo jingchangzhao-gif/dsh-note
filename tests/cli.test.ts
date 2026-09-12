@@ -96,6 +96,22 @@ describe("cli.mjs end to end", () => {
     await fs.rm(dir, { recursive: true, force: true });
   });
 
+  it("treats the word help as content, not as the help command", async () => {
+    const dir = await makeDir();
+    const wrote = await runCli(["write", dir, "--name", "h.md", "--content", "help"]);
+    expect(wrote.stdout).toContain("Wrote h.md");
+    const read = await runCli(["recall", dir, "--name", "h.md"]);
+    expect(read.stdout).toContain("help");
+    expect(read.stdout).not.toContain("Usage:");
+    const found = await runCli(["search", dir, "--query", "help"]);
+    expect(found.stdout).toContain("h.md");
+    const asked = await runCli(["help"]);
+    expect(asked.stdout).toContain("Usage:");
+    const flagged = await runCli(["list", dir, "--help"]);
+    expect(flagged.stdout).toContain("Usage:");
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
   it("keeps the legacy single-directory listing form", async () => {
     const dir = await makeDir();
     await runCli(["remember", dir, "--name", "session.md", "--content", "hello"]);
