@@ -11,6 +11,10 @@ import { describe, expect, it } from "vitest";
 // statically: computed dynamic imports fail under vitest when the project
 // path contains non-ASCII characters.
 import "../lib/api.js";
+// The shared view/read helpers come from the TypeScript sources: lib/ is the
+// built bundle the CLI runs, but it ships no .d.ts for tests to import from.
+import { readNoteFull } from "../src/notes";
+import { compactView, tailView } from "../src/view";
 
 const execFileAsync = promisify(execFile);
 const cliPath = fileURLToPath(new URL("../cli.mjs", import.meta.url));
@@ -109,6 +113,24 @@ describe("cli.mjs end to end", () => {
     expect(asked.stdout).toContain("Usage:");
     const flagged = await runCli(["list", dir, "--help"]);
     expect(flagged.stdout).toContain("Usage:");
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
+  it("returns the same recall views as the shared functions the tools use", async () => {
+    const dir = await makeDir();
+    // A body long enough to make both the tail and the compact view cut text.
+    await runCli(["write", dir, "--name", "long.md", "--content", "z".repeat(3000)]);
+    const full = await readNoteFull(dir, "long.md");
+
+    const compact = await runCli(["recall", dir, "--name", "long.md", "--compact", "--json"]);
+    const compactJson = JSON.parse(compact.stdout);
+    expect(compactJson.content).toBe(compactView(full).content);
+    expect(compactJson.truncated).toBe(compactView(full).truncated);
+
+    const tail = await runCli(["recall", dir, "--name", "long.md", "--tail", "50", "--json"]);
+    const tailJson = JSON.parse(tail.stdout);
+    expect(tailJson.content).toBe(tailView(full, 50).content);
+    expect(tailJson.truncated).toBe(tailView(full, 50).truncated);
     await fs.rm(dir, { recursive: true, force: true });
   });
 

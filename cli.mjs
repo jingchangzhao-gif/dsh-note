@@ -160,10 +160,7 @@ const handlers = {
 
   async list({ positional, flags }) {
     const dir = zoneOf("writing", positional[0]);
-    let notes = await api.listNotes(dir);
-    if (!flags.all) {
-      notes = notes.filter((note) => !api.isArchive(note.name, note.meta));
-    }
+    const notes = api.visibleOnly(await api.listNotes(dir), Boolean(flags.all));
     if (flags.json) return { json: notes };
     const lines = [`Notes in ${dir} (${notes.length}):`];
     for (const note of notes) {
@@ -189,23 +186,16 @@ const handlers = {
     const dir = zoneOf("writing", positional[0]);
     const name = requireFlag(flags, "name", "note filename, e.g. session.md");
     const full = await api.readNoteFull(dir, name);
+    // Same views the note_recall tool returns, so the two surfaces can't drift.
     if (flags.compact) {
-      const body = full.body.trim();
-      const recent = api.compactTail(body);
-      const summary = full.meta.summary;
-      const content = summary ? `summary: ${summary}\n\n${recent}` : recent;
-      if (flags.json)
-        return {
-          json: { name: full.name, content, truncated: body.length > api.COMPACT_BUDGET },
-        };
-      return { text: content };
+      const view = api.compactView(full);
+      if (flags.json) return { json: { name: full.name, ...view } };
+      return { text: view.content };
     }
     if (flags.tail !== undefined) {
-      const content = api.tailText(full.raw, numberFlag(flags, "tail", "--tail") ?? 1);
-      const chars = api.clampChars(numberFlag(flags, "tail", "--tail") ?? 1);
-      if (flags.json)
-        return { json: { name: full.name, content, truncated: full.raw.length > chars } };
-      return { text: content };
+      const view = api.tailView(full, numberFlag(flags, "tail", "--tail"));
+      if (flags.json) return { json: { name: full.name, ...view } };
+      return { text: view.content };
     }
     if (flags.json) return { json: { name: full.name, content: full.raw, truncated: false } };
     return { text: full.raw };
@@ -239,14 +229,9 @@ const handlers = {
   async search({ positional, flags }) {
     const dir = zoneOf("writing", positional[0]);
     const query = requireFlag(flags, "query", 'keywords, e.g. "pnpm merge"');
-    const limit = Math.max(
-      1,
-      Math.min(Math.round(numberFlag(flags, "limit", "--limit") ?? 10), 50),
-    );
+    const limit = api.clampSearchLimit(numberFlag(flags, "limit", "--limit"));
     const hits = await api.searchNotes(dir, query, { limit });
-    const visible = flags.all
-      ? hits
-      : hits.filter((hit) => !api.isArchive(hit.name, hit.meta));
+    const visible = api.visibleOnly(hits, Boolean(flags.all));
     if (flags.json) return { json: { query, dir, hits: visible } };
     if (visible.length === 0) return { text: "No matches." };
     const lines = visible.map(
