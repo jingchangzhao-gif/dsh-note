@@ -6,3 +6,4 @@
 export * from "./notes";
 export * from "./memory";
 export * from "./context";
+export * from "./view";

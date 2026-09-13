@@ -7,21 +7,17 @@ import { defineTool } from "@deepseek-ai/dsh-tools";
 import { buildContext } from "./context";
 import {
   appendNote,
-  clampChars,
-  COMPACT_BUDGET,
-  compactTail,
   deleteNote,
   editNote,
-  isArchive,
   listNotes,
   readNoteFull,
   searchNotes,
-  tailText,
   writeNote,
   zoneRoot,
 } from "./notes";
 import type { NoteFile, Zone } from "./notes";
 import { booleanOf, cwdOf, number, text, type ExecShape } from "./tool-util";
+import { clampSearchLimit, compactView, tailView, visibleOnly } from "./view";
 
 function zoneDir(zone: Zone, cwd: string | undefined, dir?: string): string {
   return zoneRoot(zone, cwd, dir);
@@ -134,15 +130,12 @@ export const noteRecallTool = defineTool({
     const zone = zoneDir("writing", cwdOf(exec as ExecShape | undefined), text(dir));
     const full = await readNoteFull(zone, name.trim());
     if (booleanOf(compact)) {
-      const body = full.body.trim();
-      const recent = compactTail(body);
-      const summary = text(full.meta.summary);
-      const content = summary ? `summary: ${summary}\n\n${recent}` : recent;
-      return { name: full.name, content, truncated: body.length > COMPACT_BUDGET };
+      const view = compactView(full);
+      return { name: full.name, content: view.content, truncated: view.truncated };
     }
     if (tail == null) return { name: full.name, content: full.raw, truncated: false };
-    const content = tailText(full.raw, number(tail) ?? 1);
-    return { name: full.name, content, truncated: full.raw.length > clampChars(number(tail) ?? 1) };
+    const view = tailView(full, number(tail));
+    return { name: full.name, content: view.content, truncated: view.truncated };
   },
 });
 
@@ -178,9 +171,8 @@ export const noteListTool = defineTool({
     const zone = zoneArg(zoneValue, "writing");
     const root = zoneDir(zone, cwdOf(exec as ExecShape | undefined), text(dir));
     const all = await listNotes(root);
-    const notes = (
-      zone === "memory" ? all.filter((f) => !isArchive(f.name, f.meta)) : all
-    ).map(toSummary);
+    // The memory zone hides archives; the writing zone shows everything.
+    const notes = visibleOnly(all, zone !== "memory").map(toSummary);
     return { zone, dir: root, notes };
   },
 });
@@ -329,7 +321,7 @@ export const noteSearchTool = defineTool({
     if (typeof query !== "string" || query.trim() === "") throw new Error("A query is required.");
     const zone = zoneValue === "memory" || zoneValue === "writing" ? zoneValue : "all";
     const cwd = cwdOf(exec as ExecShape | undefined);
-    const limitNum = Math.max(1, Math.min(Math.round(number(limit) ?? 10), 50));
+    const limitNum = clampSearchLimit(number(limit));
     const writingRoot = zoneDir("writing", cwd, text(dir));
     const memoryRoot = zoneDir("memory", cwd, undefined);
     const zones =
@@ -337,8 +329,9 @@ export const noteSearchTool = defineTool({
     const hits = [];
     for (const root of zones) {
       const found = await searchNotes(root, query.trim(), { limit: limitNum });
-      for (const hit of found) {
-        if (root === memoryRoot && isArchive(hit.name, hit.meta)) continue;
+      // Archives are never searched in the memory zone, wherever they are hit.
+      const visible = root === memoryRoot ? visibleOnly(found, false) : found;
+      for (const hit of visible) {
         const slim = { name: hit.name, snippet: hit.snippet, score: hit.score } as Record<
           string,
           unknown
