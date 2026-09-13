@@ -52,4 +52,20 @@ describe("front matter", () => {
     expect(parseTagsList(undefined)).toEqual([]);
     expect(formatTagsList(["x", "x", " y "])).toBe("x, y");
   });
+
+  it("round-trips a value containing a line break instead of truncating it", () => {
+    const meta = { title: "line one\nline two", summary: "a: b" };
+    const text = withFrontMatter(meta, "body");
+    const parsed = parseFrontMatter(text);
+    expect(parsed.meta).toEqual(meta);
+    expect(parsed.body.trim()).toBe("body");
+  });
+
+  it("leaves hand-written quoted text alone unless it carries an escape", () => {
+    // A plain quoted string typed by hand is the value, quotes included.
+    const plain = parseFrontMatter('---\ntitle: "use client"\n---\nbody');
+    expect(plain.meta.title).toBe('"use client"');
+    // A value we wrote ourselves carries the escaped break, so it is revived.
+    expect(parseFrontMatter('---\ntitle: "two\\nlines"\n---\nbody').meta.title).toBe("two\nlines");
+  });
 });
