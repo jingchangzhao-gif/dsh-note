@@ -34,7 +34,7 @@ export function parseFrontMatter(text: string): ParsedFrontMatter {
       break;
     }
     const match = KEY_VALUE_RE.exec(line);
-    if (match) meta[match[1]] = match[2].trim();
+    if (match) meta[match[1]] = unquote(match[2].trim());
     // malformed lines inside the block are skipped
   }
   if (close < 0) {
@@ -51,11 +51,36 @@ export function parseFrontMatter(text: string): ParsedFrontMatter {
   };
 }
 
+/**
+ * A value containing a line break cannot be written as a bare `key: value`
+ * line — it would read back truncated at the break. Such values are written as
+ * a JSON string literal (which escapes the break as \n) and revived on read.
+ */
+function needsQuoting(value: string): boolean {
+  return /[\r\n]/.test(value);
+}
+
+/** Revive a value written by `needsQuoting`; leaves hand-written plain text alone. */
+function unquote(value: string): string {
+  if (!value.startsWith('"') || !value.endsWith('"') || !value.includes("\\")) return value;
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return typeof parsed === "string" ? parsed : value;
+  } catch {
+    return value;
+  }
+}
+
 /** Serialize meta into a front matter block ("" when empty). Ends with "\n". */
 export function renderFrontMatter(meta: FrontMeta): string {
   const keys = Object.keys(meta);
   if (keys.length === 0) return "";
-  const block = keys.map((key) => `${key}: ${meta[key]}`).join("\n");
+  const block = keys
+    .map((key) => {
+      const value = meta[key];
+      return `${key}: ${needsQuoting(value) ? JSON.stringify(value) : value}`;
+    })
+    .join("\n");
   return `${FRONT_MATTER_MARK}\n${block}\n${FRONT_MATTER_MARK}\n`;
 }
 
