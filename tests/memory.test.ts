@@ -142,4 +142,50 @@ describe("memory bank", () => {
     expect(parsed.entries[0].text).toContain("one");
     expect(parsed.entries[1].whenMs).toBe(Date.parse("2024-01-02T00:00:00.000Z"));
   });
+
+  it("keeps markdown sub-headings inside one entry instead of splitting it", async () => {
+    const dir = await makeDir();
+    const content = "Here is the plan:\n\n## Step one\n\ndo X\n\n## Step two\n\ndo Y";
+    await addMemoryEntry(dir, content, { name: "plan.md" });
+    const note = await readNoteFull(dir, "plan.md");
+    const parsed = parseMemory(note.body);
+    expect(parsed.entries).toHaveLength(1);
+    expect(parsed.entries[0].text).toContain("## Step one");
+    expect(parsed.entries[0].text).toContain("do Y");
+    const recalled = await recallMemory(dir, { name: "plan.md" });
+    expect(recalled.content).toContain("Here is the plan:");
+    expect(recalled.content).toContain("do X");
+    // Compaction must not archive content that belongs to the surviving entry.
+    await compactMemory(dir, { name: "plan.md", keep: 1 });
+    const after = await recallMemory(dir, { name: "plan.md" });
+    expect(after.content).toContain("do X");
+    expect(after.content).toContain("do Y");
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
+  it("applies tags/type to a memory file that already exists", async () => {
+    const dir = await makeDir();
+    await addMemoryEntry(dir, "first entry", { name: "e.md" });
+    await addMemoryEntry(dir, "second entry", {
+      name: "e.md",
+      tags: "alpha, beta",
+      type: "decision",
+    });
+    const note = await readNoteFull(dir, "e.md");
+    expect(note.meta.tags).toBe("alpha, beta");
+    expect(note.meta.type).toBe("decision");
+    const recalled = await recallMemory(dir, { name: "e.md", tags: "beta" });
+    expect(recalled.content).toContain("second entry");
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
+  it("matches tags case-insensitively without rewriting their spelling", async () => {
+    const dir = await makeDir();
+    await addMemoryEntry(dir, "casing test", { name: "c.md", tags: "Alpha" });
+    const recalled = await recallMemory(dir, { name: "c.md", tags: "alpha" });
+    expect(recalled.content).toContain("casing test");
+    const note = await readNoteFull(dir, "c.md");
+    expect(note.meta.tags).toBe("Alpha");
+    await fs.rm(dir, { recursive: true, force: true });
+  });
 });

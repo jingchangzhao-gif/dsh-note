@@ -89,10 +89,12 @@ Convenience: the file name may be typed right after the directory —
 Add --json to print the structured result instead of plain text.
 Content tips: quote multi-word values; use --file/- for Chinese or multiline.`;
 
+const BOOLEAN_FLAGS = new Set(["compact", "all", "json", "help"]);
+
 function parseArgs(tokens) {
   const positional = [];
   const flags = {};
-  const booleanFlags = new Set(["compact", "all", "json", "help"]);
+  const booleanFlags = BOOLEAN_FLAGS;
   for (let i = 0; i < tokens.length; i += 1) {
     const token = tokens[i];
     if (token.startsWith("--")) {
@@ -424,10 +426,32 @@ const USAGE_LINES = {
   "memory-remove": 'memory-remove [dir] --match "text" [--name file]',
 };
 
+// True when help was actually asked for. Only the command word itself or a
+// help flag counts — the word "help" appearing as a flag VALUE is content
+// (`write --content help` must write, `search --query help` must search), so
+// values are skipped exactly the way parseArgs skips them.
+function wantsHelp(argv) {
+  for (let i = 0; i < argv.length; i += 1) {
+    const token = argv[i];
+    if (token === "-h") return true;
+    if (!token.startsWith("--")) {
+      if (i === 0 && token === "help") return true;
+      continue;
+    }
+    const key = token.slice(2);
+    if (BOOLEAN_FLAGS.has(key)) {
+      if (key === "help") return true;
+      continue;
+    }
+    i += 1; // this flag's value belongs to the command, not to help
+  }
+  return false;
+}
+
 // Execute one argv list and print its outcome (used by both the one-shot
 // command line and each line typed into the interactive window).
 async function runOnce(argv) {
-  if (argv.some((token) => token === "--help" || token === "-h" || token === "help")) {
+  if (wantsHelp(argv)) {
     process.stdout.write(`${HELP}\n`);
     return;
   }
