@@ -284,6 +284,8 @@ macOS is identical with `./run.command` instead of `run.bat`.
 | `search <dir?> --query words [--limit N] [--zone writing\|memory]`     | Free keyword search with snippets               |
 | `forget <dir?> --name f`                                               | Delete a note file                              |
 | `stats [dir]`                                                          | Zone inventory: files, archives, entries, bytes |
+| `export <dir?> --file f.json`                                          | Snapshot the whole folder into one JSON file    |
+| `import <dir?> --file f.json [--force]`                                | Write a snapshot back (skips existing files)    |
 | `context <dir?> [--focus q] [--notes a,b] [--memory <dir>]`            | Assemble a small bounded context packet         |
 | `memory-add <dir?> (--content \| --file) [--name] [--tags] [--type]`   | Append a timestamped bank entry                 |
 | `memory-recall <dir?> [--query] [--tags] [--type] [--limit] [--chars]` | Recall the recent/relevant small chunk          |
@@ -303,9 +305,13 @@ Notes:
 <path>` (UTF-8) or `--content -` and pipe stdin. `"$@"` on macOS/Linux
   forwards arguments byte-exactly; on Windows `%*` is re-parsed by cmd (`%`,
   `!` and `^` are special), so prefer `--file` or stdin there for tricky text.
+- `export`/`import` move a whole folder as one JSON file (backup, another
+  machine, another workspace). `import` skips files that already exist unless
+  `--force` is passed, so a restore can never silently clobber newer notes.
+  These two are CLI-only — the agent tools have no bundle equivalent.
 - The same package also works as a dsh plugin inside the DeepSeek Harness
-  GUI (`dsh plugin --profile web add dsh-note`); the 14 tools then mirror the
-  commands above.
+  GUI (`dsh plugin --profile web add dsh-note`); its 14 tools cover the note
+  and memory commands above.
 
 ## Development
 
