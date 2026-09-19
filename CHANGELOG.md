@@ -1,0 +1,92 @@
+# Changelog
+
+All notable changes to this project are documented here. The format follows
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
+adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [0.3.0] - 2026-09-19
+
+Hardening and reach: the recall paths were audited end to end, two features
+landed (`note_stats`, `export`/`import`), and CI now guards formatting,
+coverage and the launchers on three platforms.
+
+### Added
+
+- `note_stats` tool and `stats` CLI command: a free inventory of a zone — live
+  files, archives, memory entries, total bytes and the largest file — so a
+  recall budget can be chosen knowingly instead of guessed.
+- `export` / `import` CLI commands: snapshot a whole zone (nested notes and
+  `*.archive.md` included) into one JSON file and write it back. Restoring
+  skips files that already exist unless `--force` is given.
+- `--zone writing|memory` on CLI `list` and `search`: selects the default
+  folder (`./notes` or `./memory`) and the archive rule, matching the tools.
+- `pnpm coverage` with v8 thresholds, `pnpm format:check` in CI, and a CI
+  matrix covering Linux, macOS and Windows — including a smoke run of
+  `run.bat` and `./run.command` on their own platforms.
+
+### Changed
+
+- `memory_recall` leads each file with its `summary` front matter field, so the
+  digest `memory_update` stores is readable from the memory zone.
+- Memory recalls are ordered by recency **across** topic files. Previously the
+  section order followed file names, so an old topic could consume the whole
+  `limit` before a recent one was reached.
+- `note_context` drops whole parts from the oldest end, as documented.
+  Previously a newest-first pass could discard the focus hits and keep an older
+  note tail.
+- CLI `list` / `search` show writing-zone archives, matching `note_list` /
+  `note_search` (the memory view still hides them).
+- Nested notes are reported with their zone-relative name (`log/today.md`)
+  instead of a bare basename.
+- Reading a zone no longer creates it; only a write does.
+- Packaging: `docs/workflows.md` ships with the package and `package.json`
+  gained the `repository` field. `.gitattributes` normalizes the checkout to
+  LF so the formatting check is identical on every OS.
+
+### Fixed
+
+- Notes are written atomically (sibling temp file + rename), so a crash or a
+  full disk cannot leave a half-written note.
+- A memory entry and its refreshed `updated` stamp are written in one step.
+  Previously an entry could sit on disk with a stale timestamp, and the
+  rewrite window could drop a concurrent append.
+- A leading `---` block with no `key: value` line is body text, not front
+  matter. Previously such a block was read as metadata and then **deleted** by
+  the next write (`note_edit`, `note_write`, `memory_add`).
+- `memory_recall` counts the section header against `chars`, so a reply can no
+  longer exceed the requested budget, and it no longer reports `truncated` when
+  every matching entry was returned.
+- `memory_update` reports `changed: false` for a merge that alters nothing; the
+  always-moving `updated` field used to make every merge look like a change.
+- `run.command` is committed with the executable bit, so `./run.command` works
+  on a fresh clone as the README describes.
+- An unreadable file or subdirectory is skipped rather than failing an entire
+  listing, recall or search.
+- `note_search` documents and tests AND semantics (every query word must
+  appear) instead of implying `|` means OR.
+
+### Internal
+
+- Tool-layer tests for the `note_*` / `memory_*` execute paths (validation,
+  zone and `dir` overrides, archive visibility, render text), CLI end-to-end
+  tests for stdin, the interactive window and `export` / `import`, and a CJK
+  case for the `readHead` multi-byte boundary.
+- Node is pinned in CI because `tsdown` requires `^22.18 || >=24`; the
+  `engines.node >=18` floor describes the published `lib/` output, not the dev
+  toolchain.
+
+## [0.2.0] - 2026-09-08
+
+### Added
+
+- Local notes and a long-term memory bank: two zones (`./notes` and
+  `./memory`), simple front matter with free `created` / `updated` stamps,
+  free keyword search, in-place edit, and tail-first compact recall.
+- 13 dsh tools plus a cross-platform CLI launcher (`cli.mjs` with `run.bat` /
+  `run.command`) that mirrors them.
+
+## [0.1.0] - 2026-09-07
+
+### Added
+
+- Initial implementation plan and README.
