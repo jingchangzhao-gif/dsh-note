@@ -71,6 +71,7 @@ decided: use merge commits on paired PRs
 | `note_list`      | List a zone's notes with titles / types / tags                            | free |
 | `note_search`    | **Free keyword search** across writing/memory/all zones                   | free |
 | `note_forget`    | Delete a note file from either zone                                       | free |
+| `note_stats`     | Size up a zone: files, archives, entries, bytes, largest file             | free |
 | `note_context`   | Assemble the small bounded context around a focus (tail-first)            | free |
 | `memory_add`     | Append a timestamped entry to the long-term bank                          | free |
 | `memory_recall`  | Recall the recent/relevant **small chunk** (query/tags/type/date filters) | free |
@@ -98,6 +99,9 @@ step. See [`docs/workflows.md`](docs/workflows.md) for ready-to-use recipes.
    note in place — only the text it actually thinks about changes.
 5. **Forget the rest**: `note_forget`/`memory_remove` keep stored context
    small, so future prompts stay lean.
+6. **Size before recall**: `note_stats` reports how many files, entries and
+   bytes a zone holds — free — so the model can pick a recall budget instead of
+   guessing.
 
 ## Installation
 
@@ -166,6 +170,16 @@ Returns ranked hits `{ name, title, snippet, score }`. Zero tokens.
 ```json
 { "name": "session.md", "zone": "writing" }
 ```
+
+### `note_stats`
+
+```json
+{ "zone": "memory" }
+```
+
+Read-only inventory of a zone: live `files`, `archives`, memory `entries`,
+total `bytes`, and the largest file (name + size). Nothing is returned to the
+model beyond these numbers, so it costs no content tokens.
 
 ### `note_context`
 
@@ -259,21 +273,22 @@ run.bat memory-compact "D:\memory" --name decisions.md --keep 20
 
 macOS is identical with `./run.command` instead of `run.bat`.
 
-| Command                                                                | What it does                                 |
-| ---------------------------------------------------------------------- | -------------------------------------------- |
-| `list [dir]`                                                           | List note files with title/type/tags         |
-| `remember <dir?> --name f [--content \| --file \| -]`                  | Append a block (create if missing)           |
-| `recall <dir?> --name f [--tail N] [--compact]`                        | Read full text, recent tail, or compact view |
-| `write <dir?> --name f (--content \| --file) [--title/--tags/--type]`  | Fully replace the body                       |
-| `edit <dir?> --name f --old x [--new y] [--all]`                       | In-place literal body edit                   |
-| `search <dir?> --query words [--limit N]`                              | Free keyword search with snippets            |
-| `forget <dir?> --name f`                                               | Delete a note file                           |
-| `context <dir?> [--focus q] [--notes a,b] [--memory <dir>]`            | Assemble a small bounded context packet      |
-| `memory-add <dir?> (--content \| --file) [--name] [--tags] [--type]`   | Append a timestamped bank entry              |
-| `memory-recall <dir?> [--query] [--tags] [--type] [--limit] [--chars]` | Recall the recent/relevant small chunk       |
-| `memory-update <dir?> [--summary etc.] [--content \| --file]`          | Merge front matter / append entry            |
-| `memory-compact <dir?> [--name] [--keep N \| --older-than date]`       | Move older entries to `*.archive.md`         |
-| `memory-remove <dir?> --match text [--name]`                           | Delete matching entries                      |
+| Command                                                                | What it does                                    |
+| ---------------------------------------------------------------------- | ----------------------------------------------- |
+| `list [dir]`                                                           | List note files with title/type/tags            |
+| `remember <dir?> --name f [--content \| --file \| -]`                  | Append a block (create if missing)              |
+| `recall <dir?> --name f [--tail N] [--compact]`                        | Read full text, recent tail, or compact view    |
+| `write <dir?> --name f (--content \| --file) [--title/--tags/--type]`  | Fully replace the body                          |
+| `edit <dir?> --name f --old x [--new y] [--all]`                       | In-place literal body edit                      |
+| `search <dir?> --query words [--limit N]`                              | Free keyword search with snippets               |
+| `forget <dir?> --name f`                                               | Delete a note file                              |
+| `stats [dir]`                                                          | Zone inventory: files, archives, entries, bytes |
+| `context <dir?> [--focus q] [--notes a,b] [--memory <dir>]`            | Assemble a small bounded context packet         |
+| `memory-add <dir?> (--content \| --file) [--name] [--tags] [--type]`   | Append a timestamped bank entry                 |
+| `memory-recall <dir?> [--query] [--tags] [--type] [--limit] [--chars]` | Recall the recent/relevant small chunk          |
+| `memory-update <dir?> [--summary etc.] [--content \| --file]`          | Merge front matter / append entry               |
+| `memory-compact <dir?> [--name] [--keep N \| --older-than date]`       | Move older entries to `*.archive.md`            |
+| `memory-remove <dir?> --match text [--name]`                           | Delete matching entries                         |
 
 Notes:
 
@@ -285,7 +300,7 @@ Notes:
   forwards arguments byte-exactly; on Windows `%*` is re-parsed by cmd (`%`,
   `!` and `^` are special), so prefer `--file` or stdin there for tricky text.
 - The same package also works as a dsh plugin inside the DeepSeek Harness
-  GUI (`dsh plugin --profile web add dsh-note`); the 13 tools then mirror the
+  GUI (`dsh plugin --profile web add dsh-note`); the 14 tools then mirror the
   commands above.
 
 ## Development

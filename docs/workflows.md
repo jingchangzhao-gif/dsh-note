@@ -54,6 +54,7 @@ exactly the text that actually changes**.
 Scenario: a new session continues old work; first, get yourself "back".
 
 ```text
+<-- free -->  note_stats     { zone: "memory" }    // how big is the bank before recalling it
 <-- free -->  note_list      { zone: "writing" }   // which writing notes exist
 <-- free -->  note_list      { zone: "memory" }    // which memory-bank topic files exist
 <-- free -->  memory_recall  {}                    // recent tail of the bank (small default budget)
@@ -63,7 +64,8 @@ Scenario: a new session continues old work; first, get yourself "back".
 
 Key points: with no arguments, `memory_recall` returns only a **recent tail**
 (default 10 entries / 4000 chars), never the whole bank — this is exactly the
-"process only a small part of the tail, not everything" constraint.
+"process only a small part of the tail, not everything" constraint. `note_stats`
+reports the size first, so that budget can be raised or lowered knowingly.
 
 ## 4. Extract key facts
 
@@ -144,6 +146,7 @@ folder; on macOS replace `run.bat` with `./run.command`):
 | `note_list` | `run.bat list <dir>` |
 | `note_search` | `run.bat search <dir> <query words...>` |
 | `note_forget` | `run.bat forget <dir> file.md` |
+| `note_stats` | `run.bat stats <dir>` |
 | `note_context` | `run.bat context <notes> --focus "question" --notes session.md --memory <memory>` |
 | `memory_add` | `run.bat memory-add <memory> --content "…" [--name decisions.md] [--tags a,b]` |
 | `memory_recall` | `run.bat memory-recall <memory> [--query "…"] [--limit 5] [--chars 2000]` |
