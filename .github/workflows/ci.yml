@@ -21,11 +21,15 @@ jobs:
           version: 10
       - uses: actions/setup-node@v4
         with:
+          # Toolchain floor, not the package's runtime floor: tsdown needs
+          # ^22.18 || >=24 and rolldown/oxlint need ^20.19 || >=22.12, so Node
+          # 18/20 cannot build or lint here. engines.node >=18 covers the
+          # published lib, which targets es2022 and runs on the dsh host.
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm format:check
       - run: pnpm typecheck
       - run: pnpm build
-      - run: pnpm test
+      - run: pnpm coverage
       - run: pnpm lint
