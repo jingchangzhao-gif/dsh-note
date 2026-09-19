@@ -19,6 +19,7 @@
 // --file <path> or pass - as --content to read UTF-8 from stdin.
 
 import { readFile } from "node:fs/promises";
+import { dirname } from "node:path";
 
 const api = await import("./lib/api.js");
 
@@ -33,6 +34,7 @@ const COMMANDS = new Set([
   "forget",
   "stats",
   "map",
+  "mindmap",
   "export",
   "import",
   "context",
@@ -72,6 +74,9 @@ Commands (dir defaults to ./notes, or ./memory for memory-*):
   map [dir] [--chars <n>] [--zone writing|memory]
       Outline a zone: one line per file plus its newest entry headings,
       trimmed to the --chars budget (default 1200).
+  mindmap [dir] [--chars <n>] [--zone writing|memory] [--file <out.md>]
+      The same outline as a Mermaid mind map, for a human to look at; printed
+      as a fenced block, or written to --file.
   export <dir?> --file <bundle.json>
       Snapshot the whole folder (archives included) into one JSON file.
   import <dir?> --file <bundle.json> [--force]
@@ -303,6 +308,30 @@ const handlers = {
     return { text: api.renderZoneMap(map, zone) };
   },
 
+  async mindmap({ positional, flags }) {
+    const zone = zoneFlag(flags.zone);
+    const dir = zoneOf(zone, positional[0]);
+    const map = await api.zoneMap(dir, {
+      chars: numberFlag(flags, "chars", "--chars"),
+      includeArchives: zone !== "memory",
+    });
+    const mermaid = api.renderMermaidMap(map, zone);
+    if (flags.file === undefined) {
+      if (flags.json) {
+        return {
+          json: { zone, dir: map.dir, files: map.files.length, omitted: map.omitted, mermaid },
+        };
+      }
+      return { text: mermaid };
+    }
+    await api.ensureDir(dirname(flags.file));
+    await api.writeTextFile(flags.file, `${mermaid}\n`);
+    if (flags.json) {
+      return { json: { zone, dir: map.dir, file: flags.file, mermaid } };
+    }
+    return { text: `Wrote ${flags.file}` };
+  },
+
   async export({ positional, flags }) {
     const dir = zoneOf("writing", positional[0]);
     const file = requireFlag(flags, "file", "bundle to write, e.g. bank.json");
@@ -475,6 +504,7 @@ const USAGE_LINES = {
   forget: "forget [dir] <file>",
   stats: "stats [dir]",
   map: "map [dir] [--chars N] [--zone writing|memory]",
+  mindmap: "mindmap [dir] [--chars N] [--zone writing|memory] [--file out.md]",
   export: "export [dir] --file <bundle.json>",
   import: "import [dir] --file <bundle.json> [--force]",
   context: "context [dir] [--focus text] [--notes a.md,b.md] [--memory dir]",
