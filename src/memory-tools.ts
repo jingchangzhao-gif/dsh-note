@@ -64,16 +64,12 @@ export const memoryAddTool = defineTool({
     if (typeof content !== "string" || !content.trim()) {
       throw new Error("Content to remember is required.");
     }
-    return addMemoryEntry(
-      memoryZone(cwdOf(exec as ExecShape | undefined), text(dir)),
-      content,
-      {
-        name: text(name),
-        title: text(title),
-        tags: text(tags),
-        type: text(type),
-      },
-    );
+    return addMemoryEntry(memoryZone(cwdOf(exec as ExecShape | undefined), text(dir)), content, {
+      name: text(name),
+      title: text(title),
+      tags: text(tags),
+      type: text(type),
+    });
   },
 });
 
@@ -121,19 +117,16 @@ export const memoryRecallTool = defineTool({
   async execute(args, exec) {
     const { name, query, tags, type, newerThan, olderThan, limit, chars, dir } = (args ??
       {}) as Record<string, unknown>;
-    return recallMemory(
-      memoryZone(cwdOf(exec as ExecShape | undefined), text(dir)),
-      {
-        name: text(name),
-        query: text(query),
-        tags: text(tags),
-        type: text(type),
-        newerThan: text(newerThan),
-        olderThan: text(olderThan),
-        limit: typeof limit === "number" ? limit : undefined,
-        chars: typeof chars === "number" ? chars : undefined,
-      },
-    );
+    return recallMemory(memoryZone(cwdOf(exec as ExecShape | undefined), text(dir)), {
+      name: text(name),
+      query: text(query),
+      tags: text(tags),
+      type: text(type),
+      newerThan: text(newerThan),
+      olderThan: text(olderThan),
+      limit: typeof limit === "number" ? limit : undefined,
+      chars: typeof chars === "number" ? chars : undefined,
+    });
   },
 });
 
@@ -178,10 +171,7 @@ export const memoryUpdateTool = defineTool({
   },
   async execute(args, exec) {
     const { name, meta, content, dir } = (args ?? {}) as Record<string, unknown>;
-    const zone = memoryZone(
-      cwdOf(exec as ExecShape | undefined),
-      text(dir),
-    );
+    const zone = memoryZone(cwdOf(exec as ExecShape | undefined), text(dir));
     const topic = typeof name === "string" && name.trim() ? name.trim() : DEFAULT_MEMORY_NOTE;
     const patch: Record<string, string> = {};
     if (meta && typeof meta === "object") {
@@ -243,14 +233,11 @@ export const memoryCompactTool = defineTool({
   },
   async execute(args, exec) {
     const { name, keep, olderThan, dir } = (args ?? {}) as Record<string, unknown>;
-    return compactMemory(
-      memoryZone(cwdOf(exec as ExecShape | undefined), text(dir)),
-      {
-        name: text(name),
-        keep: typeof keep === "number" ? keep : undefined,
-        olderThan: text(olderThan),
-      },
-    );
+    return compactMemory(memoryZone(cwdOf(exec as ExecShape | undefined), text(dir)), {
+      name: text(name),
+      keep: typeof keep === "number" ? keep : undefined,
+      olderThan: text(olderThan),
+    });
   },
 });
 
@@ -282,10 +269,7 @@ export const memoryRemoveTool = defineTool({
   async execute(args, exec) {
     const { match, name, dir } = (args ?? {}) as Record<string, unknown>;
     if (typeof match !== "string" || !match.trim()) throw new Error("A match text is required.");
-    const zone = memoryZone(
-      cwdOf(exec as ExecShape | undefined),
-      text(dir),
-    );
+    const zone = memoryZone(cwdOf(exec as ExecShape | undefined), text(dir));
     const topic = typeof name === "string" && name.trim() ? name.trim() : DEFAULT_MEMORY_NOTE;
     return removeMemoryEntries(zone, topic, match);
   },

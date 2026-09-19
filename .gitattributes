@@ -1,0 +1,7 @@
+# Normalize line endings in the working tree so a checkout is identical on
+# every OS — otherwise Windows gets CRLF and `pnpm format:check` (prettier's
+# default endOfLine: lf) rejects every file there.
+* text=auto eol=lf
+
+# cmd.exe wants CRLF batch files; run.command (sh) stays LF via the rule above.
+*.bat text eol=crlf
