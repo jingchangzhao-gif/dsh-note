@@ -73,6 +73,7 @@ decided: use merge commits on paired PRs
 | `note_search`    | **Free keyword search** across writing/memory/all zones                   | free |
 | `note_forget`    | Delete a note file from either zone                                       | free |
 | `note_stats`     | Size up a zone: files, archives, entries, bytes, largest file             | free |
+| `note_map`       | **Outline** a zone: file lines + newest entry headings, under a budget    | free |
 | `note_context`   | Assemble the small bounded context around a focus (tail-first)            | free |
 | `memory_add`     | Append a timestamped entry to the long-term bank                          | free |
 | `memory_recall`  | Recall the recent/relevant **small chunk** (query/tags/type/date filters) | free |
@@ -103,6 +104,9 @@ step. See [`docs/workflows.md`](docs/workflows.md) for ready-to-use recipes.
 6. **Size before recall**: `note_stats` reports how many files, entries and
    bytes a zone holds — free — so the model can pick a recall budget instead of
    guessing.
+7. **Map before recall**: `note_map` returns the outline — file lines plus the
+   newest entry headings — so the model can pick the right file without paying
+   for entry bodies at all.
 
 ## Installation
 
@@ -181,6 +185,18 @@ Returns ranked hits `{ name, title, snippet, score }`. Zero tokens.
 Read-only inventory of a zone: live `files`, `archives`, memory `entries`,
 total `bytes`, and the largest file (name + size). Nothing is returned to the
 model beyond these numbers, so it costs no content tokens.
+
+### `note_map`
+
+```json
+{ "zone": "memory", "chars": 1200 }
+```
+
+Free outline of a zone: one line per file (`name — title (entries, bytes)`)
+plus each file's newest entry headings, newest first, truncated to `chars`.
+Entry headings usually carry the gist (`2024-06-01 — use pnpm`), so a map is
+often enough to decide _which_ file to recall without paying for entry bodies.
+`total` counts the files in the zone, `omitted` the ones the budget left out.
 
 ### `note_context`
 
@@ -284,6 +300,7 @@ macOS is identical with `./run.command` instead of `run.bat`.
 | `search <dir?> --query words [--limit N] [--zone writing\|memory]`     | Free keyword search with snippets               |
 | `forget <dir?> --name f`                                               | Delete a note file                              |
 | `stats [dir]`                                                          | Zone inventory: files, archives, entries, bytes |
+| `map [dir] [--chars N] [--zone writing\|memory]`                       | Outline a zone: file lines + newest headings    |
 | `export <dir?> --file f.json`                                          | Snapshot the whole folder into one JSON file    |
 | `import <dir?> --file f.json [--force]`                                | Write a snapshot back (skips existing files)    |
 | `context <dir?> [--focus q] [--notes a,b] [--memory <dir>]`            | Assemble a small bounded context packet         |
@@ -310,7 +327,7 @@ Notes:
   `--force` is passed, so a restore can never silently clobber newer notes.
   These two are CLI-only — the agent tools have no bundle equivalent.
 - The same package also works as a dsh plugin inside the DeepSeek Harness
-  GUI (`dsh plugin --profile web add dsh-note`); its 14 tools cover the note
+  GUI (`dsh plugin --profile web add dsh-note`); its 15 tools cover the note
   and memory commands above.
 
 ## Development

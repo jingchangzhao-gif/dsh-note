@@ -55,9 +55,10 @@ Scenario: a new session continues old work; first, get yourself "back".
 
 ```text
 <-- free -->  note_stats     { zone: "memory" }    // how big is the bank before recalling it
+<-- free -->  note_map       { zone: "memory" }    // outline: files + newest entry headings
 <-- free -->  note_list      { zone: "writing" }   // which writing notes exist
 <-- free -->  note_list      { zone: "memory" }    // which memory-bank topic files exist
-<-- free -->  memory_recall  {}                    // recent tail of the bank (small default budget)
+<-- free -->  memory_recall  { name: "<topic from the map>" }  // only what the map flagged
 <-- free -->  note_recall    { name: "session.md", tail: 2000 }  // most recent 2000 chars
 <-- the only paid step -->  the model assembles "where I am, what's done, what's next" from the chunks
 ```
@@ -65,7 +66,8 @@ Scenario: a new session continues old work; first, get yourself "back".
 Key points: with no arguments, `memory_recall` returns only a **recent tail**
 (default 10 entries / 4000 chars), never the whole bank — this is exactly the
 "process only a small part of the tail, not everything" constraint. `note_stats`
-reports the size first, so that budget can be raised or lowered knowingly.
+reports the size first and `note_map` shows the shape, so the recall can be
+aimed at one file instead of the whole bank.
 
 ## 4. Extract key facts
 
@@ -147,6 +149,7 @@ folder; on macOS replace `run.bat` with `./run.command`):
 | `note_search` | `run.bat search <dir> <query words...> [--zone memory]` |
 | `note_forget` | `run.bat forget <dir> file.md` |
 | `note_stats` | `run.bat stats <dir>` |
+| `note_map` | `run.bat map <dir> [--chars 1200] [--zone memory]` |
 | `note_context` | `run.bat context <notes> --focus "question" --notes session.md --memory <memory>` |
 | `memory_add` | `run.bat memory-add <memory> --content "…" [--name decisions.md] [--tags a,b]` |
 | `memory_recall` | `run.bat memory-recall <memory> [--query "…"] [--limit 5] [--chars 2000]` |

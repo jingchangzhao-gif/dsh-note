@@ -22,6 +22,7 @@ import {
   noteEditTool,
   noteForgetTool,
   noteListTool,
+  noteMapTool,
   noteRecallTool,
   noteRememberTool,
   noteSearchTool,
@@ -246,6 +247,27 @@ describe("note tools", () => {
     expect(empty).toMatchObject({ files: 0, largestName: "" });
     expect(renderText(noteStatsTool, { zone: "writing" }, empty)).not.toContain("largest:");
     await expect(run(noteStatsTool, root, { zone: "bogus" })).rejects.toThrow(/zone must be/);
+    await fs.rm(root, { recursive: true, force: true });
+  });
+
+  it("note_map outlines a zone and renders its entry headings", async () => {
+    const root = await makeRoot();
+    await addMemoryEntry(join(root, "memory"), "decision body", {
+      name: "d.md",
+      title: "use pnpm",
+    });
+    const map = await run<{
+      zone: string;
+      total: number;
+      files: { name: string; entries: number; headings: string[] }[];
+    }>(noteMapTool, root, { zone: "memory" });
+    expect(map).toMatchObject({ zone: "memory", total: 1 });
+    expect(map.files[0].entries).toBe(1);
+    expect(map.files[0].headings[0]).toContain("use pnpm");
+    const text = renderText(noteMapTool, { zone: "memory" }, map);
+    expect(text).toContain("memory map: 1 file(s)");
+    expect(text).toContain("use pnpm");
+    await expect(run(noteMapTool, root, { zone: "bogus" })).rejects.toThrow(/zone must be/);
     await fs.rm(root, { recursive: true, force: true });
   });
 
