@@ -27,6 +27,7 @@ export function parseFrontMatter(text: string): ParsedFrontMatter {
   }
   const meta: FrontMeta = {};
   let close = -1;
+  let keys = 0;
   for (let i = 1; i < lines.length; i += 1) {
     const line = lines[i];
     if (line.trim() === FRONT_MATTER_MARK) {
@@ -34,11 +35,17 @@ export function parseFrontMatter(text: string): ParsedFrontMatter {
       break;
     }
     const match = KEY_VALUE_RE.exec(line);
-    if (match) meta[match[1]] = unquote(match[2].trim());
+    if (match) {
+      meta[match[1]] = unquote(match[2].trim());
+      keys += 1;
+    }
     // malformed lines inside the block are skipped
   }
-  if (close < 0) {
-    // An opening mark without a closing one is not (valid) front matter.
+  if (close < 0 || keys === 0) {
+    // An opening mark without a closing one, or a block holding no `key: value`
+    // line at all (a leading horizontal rule, a pasted quotation), is note text
+    // — not front matter. Reading it as meta silently swallowed the block on
+    // the next write, so this guard is what keeps that content alive.
     return { hasFrontMatter: false, meta: {}, body: text };
   }
   return {

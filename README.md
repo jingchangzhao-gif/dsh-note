@@ -56,6 +56,9 @@ decided: use merge commits on paired PRs
 - `summary` is optional and is what `compact` recalls show first.
 - `type: archive` marks compaction archives, which recalls/search skip.
 - Unknown keys are preserved on rewrite; values are plain `key: value` lines.
+- A leading `---` block is front matter only when it holds at least one
+  `key: value` line. A note that opens with a `---` rule keeps it as body text
+  instead of having the block read (and then deleted) as metadata.
 
 ## Tools
 
