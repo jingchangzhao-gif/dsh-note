@@ -151,34 +151,6 @@ function entryFromBlock(block: string): MemoryEntry {
   return { when: whenMs ? firstToken : undefined, whenMs, text: block };
 }
 
-async function ensureMemoryNote(zoneDir: string, name: string): Promise<{ path: string }> {
-  const path = notePath(zoneDir, name);
-  try {
-    await fs.access(path);
-    return { path };
-  } catch {
-    /* create below */
-  }
-  const stem = basename(path).replace(/\.(?:md|markdown|txt)$/i, "");
-  const meta: FrontMeta = {
-    title: stem,
-    type: "memory",
-    created: nowIso(),
-    updated: nowIso(),
-  };
-  await ensureDir(dirname(path));
-  await writeTextFile(path, withFrontMatter(meta, ""));
-  return { path };
-}
-
-/** Refresh a file's `updated` front matter field after content changes. */
-async function touchUpdated(path: string): Promise<void> {
-  const raw = await fs.readFile(path, "utf8");
-  const fm = parseFrontMatter(raw);
-  if (!fm.hasFrontMatter) return;
-  await writeTextFile(path, withFrontMatter({ ...fm.meta, updated: nowIso() }, fm.body));
-}
-
 /** Append one timestamped entry to a memory file (creating it when missing). */
 export async function addMemoryEntry(
   zoneDir: string,
@@ -188,18 +160,39 @@ export async function addMemoryEntry(
   const body = content.trim();
   if (!body) throw new Error("Content to remember is required.");
   const name = options.name?.trim() || DEFAULT_MEMORY_NOTE;
+  const path = notePath(zoneDir, name);
   const patch: FrontMeta = {};
   if (options.title) patch.title = options.title.trim();
   if (options.tags) patch.tags = formatTagsList(parseTagsList(options.tags));
   if (options.type) patch.type = options.type.trim();
-  const { path } = await ensureMemoryNote(zoneDir, name);
-  // Merge onto the file whether it was just created or already existed: before,
-  // tags/type/title were only applied to a NEW file and silently dropped later.
-  if (Object.keys(patch).length > 0) await updateMemoryMeta(zoneDir, name, patch);
+
+  // One atomic read-modify-write: the new entry and the refreshed `updated`
+  // field land together, so a crash can never leave a note whose content
+  // changed but whose timestamp says otherwise. Tags/type/title merge onto an
+  // existing file too — they used to be dropped after the first entry.
+  let raw = "";
+  let existed = true;
+  try {
+    raw = await fs.readFile(path, "utf8");
+  } catch {
+    existed = false; // new topic file
+  }
+  const fm = existed ? parseFrontMatter(raw) : { hasFrontMatter: false, meta: {}, body: "" };
+  const stem = basename(path).replace(/\.(?:md|markdown|txt)$/i, "");
+  // A brand-new topic file gets a title and the memory type; a hand-written
+  // file keeps whatever it had (nothing is invented for it).
+  let base: FrontMeta = {};
+  if (fm.hasFrontMatter) base = { ...fm.meta };
+  else if (!existed) base = { title: stem, type: "memory" };
+  const meta: FrontMeta = { ...base, ...patch, updated: nowIso() };
+  if (!meta.created) meta.created = nowIso();
+
   const when = options.when ?? nowIso();
   const block = `## ${when}${options.title ? ` — ${options.title}` : ""}\n\n${body}`;
-  await fs.appendFile(path, `\n${block}\n`, "utf8");
-  await touchUpdated(path);
+  const previous = fm.hasFrontMatter ? fm.body : raw;
+  const nextBody = previous.trim() ? `${previous.trimEnd()}\n\n${block}` : block;
+  await ensureDir(dirname(path));
+  await writeTextFile(path, withFrontMatter(meta, nextBody));
   return { name, path };
 }
 

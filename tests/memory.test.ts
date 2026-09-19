@@ -206,6 +206,38 @@ describe("memory bank", () => {
     await fs.rm(dir, { recursive: true, force: true });
   });
 
+  it("appends the entry and the refreshed updated stamp in one write", async () => {
+    const dir = await makeDir();
+    await addMemoryEntry(dir, "first entry", { name: "d.md" });
+    const before = await readNoteFull(dir, "d.md");
+    await new Promise((done) => setTimeout(done, 5));
+    await addMemoryEntry(dir, "second entry", { name: "d.md" });
+    const after = await readNoteFull(dir, "d.md");
+    expect(after.meta.created).toBe(before.meta.created); // creation time never resets
+    expect(after.meta.updated).not.toBe(before.meta.updated);
+    expect(after.body).toContain("first entry");
+    expect(after.body).toContain("second entry");
+    // The body must be canonical: no stray blank lines between entries.
+    expect(after.body).not.toMatch(/\n{3,}/);
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
+  it("appends to a hand-written file without inventing front matter", async () => {
+    const dir = await makeDir();
+    await fs.writeFile(
+      join(dir, "plain.md"),
+      "## 2024-01-01T00:00:00.000Z\n\nhand written\n",
+      "utf8",
+    );
+    await addMemoryEntry(dir, "machine written", { name: "plain.md" });
+    const full = await readNoteFull(dir, "plain.md");
+    expect(full.meta.updated).toBeTruthy();
+    expect(full.meta.title).toBeUndefined(); // it never had one
+    expect(full.body).toContain("hand written");
+    expect(full.body).toContain("machine written");
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
   it("recalls a hand-written bank file that has no front matter title", async () => {
     const dir = await makeDir();
     await fs.writeFile(
