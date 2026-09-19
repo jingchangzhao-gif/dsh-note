@@ -278,8 +278,9 @@ Notes:
 - `run.bat <dir>` with a single bare argument keeps the legacy launcher form
   (list that directory).
 - Quote multi-word values. For Chinese or multiline content, pass `--file
-<path>` (UTF-8) or `--content -` and pipe stdin — the shells forward every
-  argument unchanged (`%*` / `"$@"`), so byte-exact input stays byte-exact.
+<path>` (UTF-8) or `--content -` and pipe stdin. `"$@"` on macOS/Linux
+  forwards arguments byte-exactly; on Windows `%*` is re-parsed by cmd (`%`,
+  `!` and `^` are special), so prefer `--file` or stdin there for tricky text.
 - The same package also works as a dsh plugin inside the DeepSeek Harness
   GUI (`dsh plugin --profile web add dsh-note`); the 13 tools then mirror the
   commands above.
