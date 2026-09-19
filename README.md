@@ -284,11 +284,19 @@ Notes:
 
 ```sh
 pnpm install
+pnpm format:check
 pnpm typecheck
 pnpm build   # build first: the CLI and its end-to-end tests run against lib/
 pnpm test
+pnpm coverage  # same suite with a v8 report and a regression threshold
 pnpm lint
 ```
+
+CI runs the full check on Linux, macOS and Windows (the CLI ships `run.bat`
+and `run.command`). Node 22 is pinned because the build toolchain requires it
+— `tsdown` needs `^22.18 || >=24` and `rolldown`/`oxlint` need
+`^20.19 || >=22.12`; the `engines.node >=18` floor describes the published
+`lib/` output, not the dev toolchain.
 
 ## License
 
