@@ -72,13 +72,15 @@ the memory bank.
 
 ```text
 <-- free -->  note_recall    { name: "article.md", compact: true }  // summary field + recent tail
-<-- free -->  note_search    { query: "decided|conclusion|key", zone: "writing" }  // locate key passages
+<-- free -->  note_search    { query: "decision", zone: "writing" }  // locate key passages
 <-- the only paid step -->  the model distills 3–8 structured bullet points
 <-- free -->  memory_add     { name: "decisions.md", content: "<points>", tags: "facts", type: "decision" }
 ```
 
 Key points: for long texts try the `compact` view first; only top up with
-`tail` / `search` as needed — never read the whole text aloud.
+`tail` / `search` as needed — never read the whole text aloud. `note_search`
+requires **every** word in `query` (AND, not OR), so a query like
+`"decided|conclusion|key"` finds nothing — run one search per keyword instead.
 
 ## 5. Reorder / outline a messy draft
 
@@ -104,7 +106,7 @@ blow the budget — grab the compact version first:
 <-- free -->  memory_recall  { name: "decisions.md", limit: 5, chars: 1000 }  // small recall
 <-- the only paid step -->  the model condenses those entries into one summary paragraph
 <-- free -->  memory_update  { name: "decisions.md", meta: { summary: "<digest>" } }
-<-- free -->  note_recall    { name: "decisions.md", compact: true }  // compact view available anytime later
+<-- free -->  memory_recall  { name: "decisions.md" }  // leads with the summary, then recent entries
 ```
 
 Scenario B: the memory file keeps growing — archive for free (content is
@@ -123,7 +125,9 @@ Scenario C: delete a wrong/outdated memory entry:
 
 Key points: `memory_compact` purely moves text (archival), zero model calls;
 real "summary compression" happens only when you ask for it (the paid step
-of scenario A).
+of scenario A). The digest is read back by `memory_recall`, which shows each
+file's `summary` first — the compact view for a memory file, no zone override
+needed (`note_recall --compact` is the equivalent for writing notes).
 
 ## 7. CLI equivalents (run.bat / run.command)
 

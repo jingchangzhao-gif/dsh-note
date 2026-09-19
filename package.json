@@ -9,7 +9,7 @@
     ".": "./lib/index.js",
     "./package.json": "./package.json"
   },
-  "files": ["lib", "cordis.patch.yml", "SECURITY.md"],
+  "files": ["lib", "docs/workflows.md", "cordis.patch.yml", "SECURITY.md"],
   "scripts": {
     "build": "tsdown",
     "coverage": "vitest run --coverage",
@@ -40,6 +40,7 @@
   },
   "keywords": ["dsh", "deepseek-harness", "memory", "notes", "agent"],
   "license": "MIT",
+  "repository": { "type": "git", "url": "git+https://github.com/jingchangzhao-gif/dsh-note.git" },
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
