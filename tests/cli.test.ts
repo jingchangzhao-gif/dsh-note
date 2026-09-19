@@ -184,6 +184,21 @@ describe("cli.mjs end to end", () => {
     await fs.rm(dir, { recursive: true, force: true });
   });
 
+  it("shows writing-zone archives in list and search, like the tools do", async () => {
+    const dir = await makeDir();
+    await runCli(["remember", dir, "--name", "live.md", "--content", "alpha token"]);
+    await runCli(["remember", dir, "--name", "old.archive.md", "--content", "alpha token"]);
+    const listed = await runCli(["list", dir]);
+    expect(listed.stdout).toContain("live.md");
+    expect(listed.stdout).toContain("old.archive.md");
+    const found = await runCli(["search", dir, "--query", "alpha"]);
+    expect(found.stdout).toContain("old.archive.md");
+    // --all is still accepted (now redundant) so older invocations keep working.
+    const flagged = await runCli(["search", dir, "--query", "alpha", "--all"]);
+    expect(flagged.stdout).toContain("old.archive.md");
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
   it("exits non-zero with a usage hint on bad input", async () => {
     const dir = await makeDir();
     await expect(runCli(["nope", "arg"])).rejects.toThrow(/unknown command/);

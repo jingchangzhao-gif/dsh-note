@@ -263,7 +263,7 @@ macOS is identical with `./run.command` instead of `run.bat`.
 | `recall <dir?> --name f [--tail N] [--compact]`                        | Read full text, recent tail, or compact view |
 | `write <dir?> --name f (--content \| --file) [--title/--tags/--type]`  | Fully replace the body                       |
 | `edit <dir?> --name f --old x [--new y] [--all]`                       | In-place literal body edit                   |
-| `search <dir?> --query words [--limit N] [--all]`                      | Free keyword search with snippets            |
+| `search <dir?> --query words [--limit N]`                              | Free keyword search with snippets            |
 | `forget <dir?> --name f`                                               | Delete a note file                           |
 | `context <dir?> [--focus q] [--notes a,b] [--memory <dir>]`            | Assemble a small bounded context packet      |
 | `memory-add <dir?> (--content \| --file) [--name] [--tags] [--type]`   | Append a timestamped bank entry              |
