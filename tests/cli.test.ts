@@ -1,4 +1,4 @@
-import { execFile } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { promises as fs } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -28,6 +28,33 @@ async function runCli(args: string[]): Promise<{ stdout: string; stderr: string 
 
 async function makeDir(): Promise<string> {
   return fs.mkdtemp(join(tmpdir(), "dsh-note-cli-"));
+}
+
+/**
+ * Run the CLI with something on stdin: `--content -`, or the commands typed
+ * into the interactive window. No stdio option means all three pipes, which is
+ * what makes the streams non-null and the child a non-TTY.
+ */
+function runCliWithInput(
+  args: string[],
+  input: string,
+): Promise<{ stdout: string; stderr: string; code: number | null }> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [cliPath, ...args]);
+    let stdout = "";
+    let stderr = "";
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", (chunk: string) => {
+      stdout += chunk;
+    });
+    child.stderr.on("data", (chunk: string) => {
+      stderr += chunk;
+    });
+    child.on("error", reject);
+    child.on("close", (code) => resolve({ stdout, stderr, code }));
+    child.stdin.end(input);
+  });
 }
 
 describe("cli.mjs end to end", () => {
@@ -205,6 +232,48 @@ describe("cli.mjs end to end", () => {
     const failure = runCli(["recall", dir]);
     await expect(failure).rejects.toMatchObject({ code: 1 });
     await expect(failure).rejects.toThrow(/usage: recall/);
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
+  it("reads content from stdin and from a UTF-8 --file", async () => {
+    const dir = await makeDir();
+    const src = await makeDir(); // separate folder: a .txt inside the zone would be a note
+    const piped = await runCliWithInput(
+      ["remember", dir, "--name", "stdin.md", "--content", "-"],
+      "line one\nline two\n",
+    );
+    expect(piped.code).toBe(0);
+    const read = await runCli(["recall", dir, "--name", "stdin.md"]);
+    expect(read.stdout).toContain("line one");
+    expect(read.stdout).toContain("line two");
+
+    const file = join(src, "content.txt");
+    await fs.writeFile(file, "中文内容\n", "utf8");
+    await runCli(["remember", dir, "--name", "cjk.md", "--file", file]);
+    expect((await runCli(["recall", dir, "--name", "cjk.md"])).stdout).toContain("中文内容");
+    await fs.rm(dir, { recursive: true, force: true });
+    await fs.rm(src, { recursive: true, force: true });
+  });
+
+  it("runs the commands typed into the interactive window", async () => {
+    const dir = await makeDir();
+    await runCli(["remember", dir, "--name", "session.md", "--content", "hello interactive"]);
+    const session = await runCliWithInput(
+      [],
+      `list "${dir}"\nsearch "${dir}" --query interactive\nquit\n`,
+    );
+    expect(session.code).toBe(0);
+    expect(session.stdout).toContain("session.md");
+    expect(session.stdout).toContain("hello interactive");
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
+  it("refuses --content - inside the interactive window", async () => {
+    const dir = await makeDir();
+    // The prompt owns stdin there, so reading content from it would deadlock.
+    const session = await runCliWithInput([], `remember "${dir}" --name x.md --content -\nexit\n`);
+    expect(session.stderr).toContain("--content - reads stdin");
+    expect(session.code).toBe(0);
     await fs.rm(dir, { recursive: true, force: true });
   });
 });
