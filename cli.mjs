@@ -32,6 +32,8 @@ const COMMANDS = new Set([
   "search",
   "forget",
   "stats",
+  "export",
+  "import",
   "context",
   "memory-add",
   "memory-recall",
@@ -66,6 +68,11 @@ Commands (dir defaults to ./notes, or ./memory for memory-*):
       Delete a note file.
   stats [dir]
       Size up a zone: files, archives, memory entries, bytes, largest file.
+  export <dir?> --file <bundle.json>
+      Snapshot the whole folder (archives included) into one JSON file.
+  import <dir?> --file <bundle.json> [--force]
+      Write a snapshot back into a folder; existing files are skipped unless
+      --force is given.
   context <dir?> [--focus <text>] [--notes a.md,b.md] [--chars <n>] [--memory <dir>]
       Assemble a small bounded context packet (writing tails + focus hits +
       recent memory tail; older parts drop first under budget).
@@ -93,7 +100,7 @@ Convenience: the file name may be typed right after the directory —
 Add --json to print the structured result instead of plain text.
 Content tips: quote multi-word values; use --file/- for Chinese or multiline.`;
 
-const BOOLEAN_FLAGS = new Set(["compact", "all", "json", "help"]);
+const BOOLEAN_FLAGS = new Set(["compact", "all", "json", "force", "help"]);
 
 function parseArgs(tokens) {
   const positional = [];
@@ -281,6 +288,23 @@ const handlers = {
     return { text: lines.join("\n") };
   },
 
+  async export({ positional, flags }) {
+    const dir = zoneOf("writing", positional[0]);
+    const file = requireFlag(flags, "file", "bundle to write, e.g. bank.json");
+    const result = await api.exportZone(dir, file);
+    if (flags.json) return { json: result };
+    return { text: `Exported ${result.files} file(s), ${result.bytes} bytes -> ${result.file}` };
+  },
+
+  async import({ positional, flags }) {
+    const dir = zoneOf("writing", positional[0]);
+    const file = requireFlag(flags, "file", "bundle to read, e.g. bank.json");
+    const result = await api.importZone(dir, file, { overwrite: Boolean(flags.force) });
+    if (flags.json) return { json: result };
+    const skipped = result.skipped.length > 0 ? `, skipped ${result.skipped.length} existing` : "";
+    return { text: `Imported ${result.files} file(s) into ${dir}${skipped}` };
+  },
+
   async context({ positional, flags }) {
     const notes =
       flags.notes !== undefined
@@ -435,6 +459,8 @@ const USAGE_LINES = {
   search: "search [dir] <query words...> [--limit N] [--zone writing|memory]",
   forget: "forget [dir] <file>",
   stats: "stats [dir]",
+  export: "export [dir] --file <bundle.json>",
+  import: "import [dir] --file <bundle.json> [--force]",
   context: "context [dir] [--focus text] [--notes a.md,b.md] [--memory dir]",
   "memory-add":
     "memory-add [dir] (--content | --file <path>) [--name file] [--tags a,b] [--type t]",

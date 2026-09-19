@@ -8,3 +8,4 @@ export * from "./memory";
 export * from "./context";
 export * from "./view";
 export * from "./stats";
+export * from "./bundle";

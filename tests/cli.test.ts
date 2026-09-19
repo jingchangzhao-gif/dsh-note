@@ -212,6 +212,29 @@ describe("cli.mjs end to end", () => {
     await fs.rm(dir, { recursive: true, force: true });
   });
 
+  it("exports a folder to a bundle and imports it back", async () => {
+    const src = await makeDir();
+    const dst = await makeDir();
+    const bundle = join(src, "bundle.json");
+    await runCli(["remember", src, "--name", "log/today.md", "--content", "bundle body"]);
+    const exported = await runCli(["export", src, "--file", bundle]);
+    expect(exported.stdout).toContain("Exported 1 file(s)");
+
+    const imported = await runCli(["import", dst, "--file", bundle]);
+    expect(imported.stdout).toContain("Imported 1 file(s)");
+    expect((await runCli(["recall", dst, "--name", "log/today.md"])).stdout).toContain(
+      "bundle body",
+    );
+
+    // Restoring twice must not clobber what is already there, unless forced.
+    const again = await runCli(["import", dst, "--file", bundle]);
+    expect(again.stdout).toContain("skipped 1 existing");
+    const forced = await runCli(["import", dst, "--file", bundle, "--force"]);
+    expect(forced.stdout).toContain("Imported 1 file(s)");
+    await fs.rm(src, { recursive: true, force: true });
+    await fs.rm(dst, { recursive: true, force: true });
+  });
+
   it("stats reports the zone size, in text and as JSON", async () => {
     const dir = await makeDir();
     await runCli(["remember", dir, "--name", "a.md", "--content", "hello"]);
