@@ -206,6 +206,24 @@ describe("memory bank", () => {
     await fs.rm(dir, { recursive: true, force: true });
   });
 
+  it("orders recall sections by their newest entry across topic files", async () => {
+    const dir = await makeDir();
+    const when = (day: string) => new Date(`${day}T00:00:00Z`).toISOString();
+    await addMemoryEntry(dir, "old decision", { name: "a.md", when: when("2024-01-01") });
+    await addMemoryEntry(dir, "recent preference", { name: "z.md", when: when("2024-06-01") });
+    // "z.md" sorts last by name, so filename order would spend the whole limit
+    // on the stale topic before ever reaching the recent one.
+    const newestOnly = await recallMemory(dir, { limit: 1, chars: 100_000 });
+    expect(newestOnly.files).toBe(1);
+    expect(newestOnly.content).toContain("recent preference");
+    expect(newestOnly.content).not.toContain("old decision");
+    const both = await recallMemory(dir, { limit: 10, chars: 100_000 });
+    expect(both.content.indexOf("recent preference")).toBeLessThan(
+      both.content.indexOf("old decision"),
+    );
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
   it("appends the entry and the refreshed updated stamp in one write", async () => {
     const dir = await makeDir();
     await addMemoryEntry(dir, "first entry", { name: "d.md" });

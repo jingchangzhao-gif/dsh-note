@@ -223,6 +223,13 @@ export async function recallMemory(
   let used = 0;
   let truncated = false;
   let acceptedTotal = 0;
+  interface Candidate {
+    name: string;
+    header: string;
+    matched: MemoryEntry[];
+    newestMs: number;
+  }
+  const candidates: Candidate[] = [];
   for (const file of pool) {
     let raw = "";
     try {
@@ -257,7 +264,20 @@ export async function recallMemory(
     const tagList = parseTagsList(fm.meta.tags);
     if (tagList.length > 0) headerLines.push(`tags: ${tagList.join(", ")}`);
     if (fm.meta.type && fm.meta.type !== "memory") headerLines.push(`type: ${fm.meta.type}`);
-    const header = headerLines.join("\n");
+    candidates.push({
+      name: file.name,
+      header: headerLines.join("\n"),
+      matched,
+      newestMs: matched[0].whenMs,
+    });
+  }
+
+  // Newest-first has to hold for the whole reply, not just inside one file:
+  // in filename order an old topic could spend the entire `limit` before a
+  // recent one was ever reached. Ties break on the file name for stability.
+  candidates.sort((a, b) => b.newestMs - a.newestMs || a.name.localeCompare(b.name));
+
+  for (const { header, matched } of candidates) {
     // The budget is the size of the reply, so count the section header and the
     // "\n" that joins this section to the previous one — not just entry bodies.
     const headerChars = header.length + 1;
