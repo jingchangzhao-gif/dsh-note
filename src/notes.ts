@@ -6,7 +6,7 @@
 // files, full update/edit instead of append-only, and local keyword search.
 
 import { promises as fs } from "node:fs";
-import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { nowIso, parseFrontMatter, withFrontMatter } from "./frontmatter";
 import type { FrontMeta, ParsedFrontMatter } from "./frontmatter";
 
@@ -107,6 +107,26 @@ export function resolveMemoryDir(cwd: string | undefined, requestedDir?: string)
 
 export async function ensureDir(dir: string): Promise<void> {
   await fs.mkdir(dir, { recursive: true });
+}
+
+// Temp-file suffix for writeTextFile: never a note extension, so a stray file
+// left by a failed rename is invisible to listNotes/searchNotes.
+let tempSeq = 0;
+
+/**
+ * Write a file in one step: the text lands in a sibling temp file first and is
+ * renamed over the target, so a crash or a full disk can never leave a note
+ * half-written (rename is atomic on the same filesystem).
+ */
+export async function writeTextFile(path: string, text: string): Promise<void> {
+  const tmp = `${path}.${process.pid}-${(tempSeq += 1)}.tmp`;
+  await fs.writeFile(tmp, text, "utf8");
+  await fs.rename(tmp, path);
+}
+
+/** Zone-relative, "/"-separated name for an absolute path inside a zone. */
+export function zoneRelativeName(zoneDir: string, path: string): string {
+  return relative(resolve(zoneDir), path).replace(/\\/g, "/");
 }
 
 export function isNoteExt(name: string): boolean {
@@ -244,7 +264,7 @@ export async function readNoteFull(zoneDir: string, name: string): Promise<NoteC
   const raw = await fs.readFile(path, "utf8");
   const fm = parseFrontMatter(raw);
   return {
-    name: relative(resolve(zoneDir), path).replace(/\\/g, "/"),
+    name: zoneRelativeName(zoneDir, path),
     path,
     meta: fm.meta,
     body: fm.body,
@@ -272,11 +292,11 @@ export async function appendNote(
   const nextBody = base ? `${base.trimEnd()}\n\n---\n\n${content.trim()}` : content.trim();
   if (fm?.hasFrontMatter) {
     const meta = { ...fm.meta, updated: nowIso() };
-    await fs.writeFile(path, withFrontMatter(meta, nextBody), "utf8");
+    await writeTextFile(path, withFrontMatter(meta, nextBody));
   } else {
-    await fs.writeFile(path, `${nextBody.trimEnd()}\n`, "utf8");
+    await writeTextFile(path, `${nextBody.trimEnd()}\n`);
   }
-  return { name: basename(path), path };
+  return { name: zoneRelativeName(zoneDir, path), path };
 }
 
 export interface WriteResult {
@@ -312,11 +332,11 @@ export async function writeNote(
     const meta: FrontMeta = { ...base, ...patch };
     meta.updated = nowIso();
     if (!meta.created) meta.created = nowIso();
-    await fs.writeFile(path, withFrontMatter(meta, body), "utf8");
-    return { name: basename(path), path, created: !existing, meta };
+    await writeTextFile(path, withFrontMatter(meta, body));
+    return { name: zoneRelativeName(zoneDir, path), path, created: !existing, meta };
   }
-  await fs.writeFile(path, `${body.trimEnd()}\n`, "utf8");
-  return { name: basename(path), path, created: !existing, meta: {} };
+  await writeTextFile(path, `${body.trimEnd()}\n`);
+  return { name: zoneRelativeName(zoneDir, path), path, created: !existing, meta: {} };
 }
 
 export interface EditResult {
@@ -357,12 +377,12 @@ export async function editNote(zoneDir: string, name: string, ops: EditOp[]): Pr
     const meta = { ...fm.meta };
     if (fm.hasFrontMatter || Object.keys(meta).length > 0) {
       meta.updated = nowIso();
-      await fs.writeFile(path, withFrontMatter(meta, body), "utf8");
+      await writeTextFile(path, withFrontMatter(meta, body));
     } else {
-      await fs.writeFile(path, `${body.trimEnd()}\n`, "utf8");
+      await writeTextFile(path, `${body.trimEnd()}\n`);
     }
   }
-  return { name: basename(path), path, changed, edits };
+  return { name: zoneRelativeName(zoneDir, path), path, changed, edits };
 }
 
 /** Delete a note file; reports false when it did not exist. */

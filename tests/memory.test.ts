@@ -103,6 +103,43 @@ describe("memory bank", () => {
     await fs.rm(dir, { recursive: true, force: true });
   });
 
+  it("reports changed only when a merge actually alters the front matter", async () => {
+    const dir = await makeDir();
+    await seed(dir);
+    await updateMemoryMeta(dir, "decisions.md", { summary: "same digest" });
+    const again = await updateMemoryMeta(dir, "decisions.md", { summary: "same digest" });
+    expect(again.changed).toBe(false); // `updated` moving is not a real change
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
+  it("keeps the whole recall reply inside the chars budget, header included", async () => {
+    const dir = await makeDir();
+    // "a" has a big tag header plus a long entry: it cannot fit the budget, and
+    // counting only the entry body would still let it through.
+    await addMemoryEntry(dir, "a".repeat(100), {
+      name: "a.md",
+      tags: "t".repeat(140),
+      when: new Date("2024-01-01T00:00:00Z").toISOString(),
+    });
+    await addMemoryEntry(dir, "b-only", {
+      name: "b.md",
+      when: new Date("2024-01-02T00:00:00Z").toISOString(),
+    });
+    const result = await recallMemory(dir, { chars: 200, limit: 10 });
+    expect(result.content.length).toBeLessThanOrEqual(200);
+    expect(result.content).toContain("b-only"); // the part that does fit is kept
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
+  it("does not claim truncation when every entry fits", async () => {
+    const dir = await makeDir();
+    await addMemoryEntry(dir, "the only entry", { name: "one.md" });
+    const result = await recallMemory(dir, { limit: 1, chars: 100_000 });
+    expect(result.files).toBe(1);
+    expect(result.truncated).toBe(false);
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
   it("compactMemory archives older entries and recall ignores archives", async () => {
     const dir = await makeDir();
     await seed(dir);
