@@ -29,7 +29,9 @@ override):
 
 Memory bank files are topic files (e.g. `decisions.md`) whose body is a list
 of entries headed `## <ISO timestamp> [title]`. Files can nest inside a zone
-(e.g. `log/today.md`); names can never escape the zone root.
+(e.g. `log/today.md`); names can never escape the zone root. Files or
+subdirectories the process cannot read are skipped, so one bad permission
+never fails a whole listing, recall or search.
 
 ## Easy front matter
 

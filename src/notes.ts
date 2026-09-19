@@ -6,6 +6,7 @@
 // files, full update/edit instead of append-only, and local keyword search.
 
 import { promises as fs } from "node:fs";
+import type { Dirent } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { nowIso, parseFrontMatter, withFrontMatter } from "./frontmatter";
 import type { FrontMeta, ParsedFrontMatter } from "./frontmatter";
@@ -202,7 +203,14 @@ async function listFilesRecursive(root: string): Promise<{ name: string; path: s
   while (stack.length > 0) {
     const current = stack.pop();
     if (!current) continue;
-    const entries = await fs.readdir(current, { withFileTypes: true });
+    let entries: Dirent[];
+    try {
+      entries = await fs.readdir(current, { withFileTypes: true });
+    } catch {
+      // An unreadable subdirectory (permissions, macOS TemporaryItems) must not
+      // break the whole listing: skip that branch and keep walking the rest.
+      continue;
+    }
     for (const entry of entries) {
       if (entry.name.startsWith(".")) continue;
       const path = join(current, entry.name);
@@ -245,7 +253,11 @@ export async function listNotes(zoneDir: string): Promise<NoteFile[]> {
   const out: NoteFile[] = [];
   for (const file of files) {
     if (!isNoteExt(file.name)) continue;
-    out.push(await describeNote(file.name, file.path));
+    try {
+      out.push(await describeNote(file.name, file.path));
+    } catch {
+      // Unreadable file: skip it rather than failing the whole listing.
+    }
   }
   return out;
 }
@@ -441,7 +453,12 @@ export async function searchNotes(
   const hits: SearchHit[] = [];
   for (const file of files) {
     if (!isNoteExt(file.name)) continue;
-    const raw = await fs.readFile(file.path, "utf8");
+    let raw = "";
+    try {
+      raw = await fs.readFile(file.path, "utf8");
+    } catch {
+      continue; // unreadable file: skip it instead of failing the whole search
+    }
     const lower = raw.toLowerCase();
     if (!words.every((word) => lower.includes(word))) continue;
     const fm = parseFrontMatter(raw);

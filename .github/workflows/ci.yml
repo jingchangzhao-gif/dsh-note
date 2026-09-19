@@ -33,3 +33,15 @@ jobs:
       - run: pnpm build
       - run: pnpm coverage
       - run: pnpm lint
+      # The launchers are the documented entry point on their own platform, and
+      # `./run.command` only works when the executable bit is committed.
+      - name: Launcher smoke (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          .\run.bat --help
+          .\run.bat list "$env:RUNNER_TEMP"
+      - name: Launcher smoke (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          ./run.command --help
+          ./run.command list "$RUNNER_TEMP"
