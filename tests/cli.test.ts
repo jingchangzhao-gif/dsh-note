@@ -211,6 +211,21 @@ describe("cli.mjs end to end", () => {
     await fs.rm(dir, { recursive: true, force: true });
   });
 
+  it("stats reports the zone size, in text and as JSON", async () => {
+    const dir = await makeDir();
+    await runCli(["remember", dir, "--name", "a.md", "--content", "hello"]);
+    const plain = await runCli(["stats", dir]);
+    expect(plain.stdout).toContain("files: 1");
+    expect(plain.stdout).toContain("largest: a.md");
+    const json = JSON.parse((await runCli(["stats", dir, "--json"])).stdout) as {
+      files: number;
+      bytes: number;
+    };
+    expect(json.files).toBe(1);
+    expect(json.bytes).toBeGreaterThan(0);
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
   it("shows writing-zone archives in list and search, like the tools do", async () => {
     const dir = await makeDir();
     await runCli(["remember", dir, "--name", "live.md", "--content", "alpha token"]);

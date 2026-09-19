@@ -31,6 +31,7 @@ const COMMANDS = new Set([
   "edit",
   "search",
   "forget",
+  "stats",
   "context",
   "memory-add",
   "memory-recall",
@@ -62,6 +63,8 @@ Commands (dir defaults to ./notes, or ./memory for memory-*):
       Free keyword search with snippets (archives included).
   forget <dir?> --name <file>
       Delete a note file.
+  stats [dir]
+      Size up a zone: files, archives, memory entries, bytes, largest file.
   context <dir?> [--focus <text>] [--notes a.md,b.md] [--chars <n>] [--memory <dir>]
       Assemble a small bounded context packet (writing tails + focus hits +
       recent memory tail; older parts drop first under budget).
@@ -250,6 +253,22 @@ const handlers = {
     return { text: `Forgot ${name} (removed: ${removed})` };
   },
 
+  async stats({ positional, flags }) {
+    const dir = zoneOf("writing", positional[0]);
+    const result = await api.zoneStats(dir);
+    if (flags.json) return { json: result };
+    const lines = [
+      result.dir,
+      `files: ${result.files} (+${result.archives} archive)`,
+      `entries: ${result.entries}`,
+      `bytes: ${result.bytes}`,
+    ];
+    if (result.largest) {
+      lines.push(`largest: ${result.largest.name} (${result.largest.bytes} bytes)`);
+    }
+    return { text: lines.join("\n") };
+  },
+
   async context({ positional, flags }) {
     const notes =
       flags.notes !== undefined
@@ -403,6 +422,7 @@ const USAGE_LINES = {
   edit: 'edit [dir] <file> --old "text" [--new "text"] [--all]',
   search: "search [dir] <query words...> [--limit N]",
   forget: "forget [dir] <file>",
+  stats: "stats [dir]",
   context: "context [dir] [--focus text] [--notes a.md,b.md] [--memory dir]",
   "memory-add":
     "memory-add [dir] (--content | --file <path>) [--name file] [--tags a,b] [--type t]",

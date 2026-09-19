@@ -14,6 +14,7 @@ import {
   noteRecallTool,
   noteRememberTool,
   noteSearchTool,
+  noteStatsTool,
   noteWriteTool,
 } from "./note-tools";
 
@@ -30,6 +31,7 @@ export function apply(ctx: Context) {
   ctx.tools.register(noteSearchTool);
   ctx.tools.register(noteForgetTool);
   ctx.tools.register(noteContextTool);
+  ctx.tools.register(noteStatsTool);
   // long-term memory bank
   ctx.tools.register(memoryAddTool);
   ctx.tools.register(memoryRecallTool);

@@ -25,6 +25,7 @@ import {
   noteRecallTool,
   noteRememberTool,
   noteSearchTool,
+  noteStatsTool,
   noteWriteTool,
 } from "../src/note-tools";
 
@@ -219,6 +220,32 @@ describe("note tools", () => {
     });
     expect(tight.chars).toBeLessThanOrEqual(500);
     expect(tight.truncated).toBe(true);
+    await fs.rm(root, { recursive: true, force: true });
+  });
+
+  it("note_stats sizes a zone and renders the numbers", async () => {
+    const root = await makeRoot();
+    await addMemoryEntry(join(root, "memory"), "an entry", { name: "m.md" });
+    const stats = await run<{
+      zone: string;
+      files: number;
+      archives: number;
+      entries: number;
+      bytes: number;
+      largestName: string;
+    }>(noteStatsTool, root, { zone: "memory" });
+    expect(stats).toMatchObject({ zone: "memory", files: 1, archives: 0, entries: 1 });
+    expect(stats.bytes).toBeGreaterThan(0);
+    expect(stats.largestName).toBe("m.md");
+    const text = renderText(noteStatsTool, { zone: "memory" }, stats);
+    expect(text).toContain("bytes:");
+    expect(text).toContain("largest: m.md");
+    const empty = await run<{ files: number; largestName: string }>(noteStatsTool, root, {
+      zone: "writing",
+    });
+    expect(empty).toMatchObject({ files: 0, largestName: "" });
+    expect(renderText(noteStatsTool, { zone: "writing" }, empty)).not.toContain("largest:");
+    await expect(run(noteStatsTool, root, { zone: "bogus" })).rejects.toThrow(/zone must be/);
     await fs.rm(root, { recursive: true, force: true });
   });
 

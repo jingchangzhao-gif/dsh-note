@@ -16,6 +16,7 @@ import {
   zoneRoot,
 } from "./notes";
 import type { NoteFile, Zone } from "./notes";
+import { zoneStats } from "./stats";
 import { booleanOf, cwdOf, number, text, type ExecShape } from "./tool-util";
 import { clampSearchLimit, compactView, tailView, visibleOnly } from "./view";
 
@@ -383,6 +384,68 @@ export const noteForgetTool = defineTool({
     const root = zoneDir(zone, cwdOf(exec as ExecShape | undefined), text(dir));
     const removed = await deleteNote(root, name.trim());
     return { name: name.trim(), removed, zone };
+  },
+});
+
+export const noteStatsTool = defineTool({
+  name: "note_stats",
+  description:
+    "Size up a zone for free before recalling: live file count, archive count, memory entry count, total bytes and the largest file. Use it to choose how much to recall, or to see whether compacting the bank would pay off.",
+  parameters: {
+    zone: { type: "string", description: '"writing" (default) or "memory".' },
+    dir: { type: "string", description: "Optional directory override for the selected zone." },
+  },
+  output: {
+    schema: {
+      type: "object",
+      properties: {
+        zone: { type: "string" },
+        dir: { type: "string" },
+        files: { type: "number" },
+        archives: { type: "number" },
+        entries: { type: "number" },
+        bytes: { type: "number" },
+        largestName: { type: "string" },
+        largestBytes: { type: "number" },
+      },
+      additionalProperties: false,
+    },
+    render: (_args, value) => {
+      const v = value as {
+        zone?: string;
+        dir?: string;
+        files?: number;
+        archives?: number;
+        entries?: number;
+        bytes?: number;
+        largestName?: string;
+        largestBytes?: number;
+      };
+      const lines = [
+        `${v.dir ?? "?"} [${v.zone ?? "writing"}]`,
+        `files: ${v.files ?? 0} (+${v.archives ?? 0} archive)`,
+        `entries: ${v.entries ?? 0}`,
+        `bytes: ${v.bytes ?? 0}`,
+      ];
+      if (v.largestName) lines.push(`largest: ${v.largestName} (${v.largestBytes ?? 0} bytes)`);
+      return [{ type: "text", text: lines.join("\n") }];
+    },
+  },
+  async execute(args, exec) {
+    const { zone: zoneValue, dir } = (args ?? {}) as Record<string, unknown>;
+    const zone = zoneArg(zoneValue, "writing");
+    const root = zoneDir(zone, cwdOf(exec as ExecShape | undefined), text(dir));
+    const stats = await zoneStats(root);
+    return {
+      zone,
+      dir: stats.dir,
+      files: stats.files,
+      archives: stats.archives,
+      entries: stats.entries,
+      bytes: stats.bytes,
+      largestName: stats.largest?.name ?? "",
+      largestBytes: stats.largest?.bytes ?? 0,
+    };
   },
 });
 
