@@ -275,12 +275,12 @@ macOS is identical with `./run.command` instead of `run.bat`.
 
 | Command                                                                | What it does                                    |
 | ---------------------------------------------------------------------- | ----------------------------------------------- |
-| `list [dir]`                                                           | List note files with title/type/tags            |
+| `list [dir] [--zone writing\|memory]`                                  | List note files with title/type/tags            |
 | `remember <dir?> --name f [--content \| --file \| -]`                  | Append a block (create if missing)              |
 | `recall <dir?> --name f [--tail N] [--compact]`                        | Read full text, recent tail, or compact view    |
 | `write <dir?> --name f (--content \| --file) [--title/--tags/--type]`  | Fully replace the body                          |
 | `edit <dir?> --name f --old x [--new y] [--all]`                       | In-place literal body edit                      |
-| `search <dir?> --query words [--limit N]`                              | Free keyword search with snippets               |
+| `search <dir?> --query words [--limit N] [--zone writing\|memory]`     | Free keyword search with snippets               |
 | `forget <dir?> --name f`                                               | Delete a note file                              |
 | `stats [dir]`                                                          | Zone inventory: files, archives, entries, bytes |
 | `context <dir?> [--focus q] [--notes a,b] [--memory <dir>]`            | Assemble a small bounded context packet         |
@@ -293,6 +293,9 @@ macOS is identical with `./run.command` instead of `run.bat`.
 Notes:
 
 - Append `--json` to any command to print the structured result.
+- `--zone memory` makes `list` and `search` work on `./memory` instead of
+  `./notes` and hides archives, the same rule `note_list`/`note_search` apply;
+  a `dir` argument still points them at any other folder.
 - `run.bat <dir>` with a single bare argument keeps the legacy launcher form
   (list that directory).
 - Quote multi-word values. For Chinese or multiline content, pass `--file

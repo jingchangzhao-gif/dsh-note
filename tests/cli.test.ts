@@ -19,9 +19,10 @@ import { compactView, tailView } from "../src/view";
 const execFileAsync = promisify(execFile);
 const cliPath = fileURLToPath(new URL("../cli.mjs", import.meta.url));
 
-async function runCli(args: string[]): Promise<{ stdout: string; stderr: string }> {
+async function runCli(args: string[], cwd?: string): Promise<{ stdout: string; stderr: string }> {
   const { stdout, stderr } = await execFileAsync(process.execPath, [cliPath, ...args], {
     encoding: "utf8",
+    cwd,
   });
   return { stdout, stderr };
 }
@@ -226,19 +227,41 @@ describe("cli.mjs end to end", () => {
     await fs.rm(dir, { recursive: true, force: true });
   });
 
-  it("shows writing-zone archives in list and search, like the tools do", async () => {
+  it("applies the zone archive rule to list and search", async () => {
     const dir = await makeDir();
     await runCli(["remember", dir, "--name", "live.md", "--content", "alpha token"]);
     await runCli(["remember", dir, "--name", "old.archive.md", "--content", "alpha token"]);
+    // Writing rule: archives included, like note_list/note_search.
     const listed = await runCli(["list", dir]);
     expect(listed.stdout).toContain("live.md");
     expect(listed.stdout).toContain("old.archive.md");
     const found = await runCli(["search", dir, "--query", "alpha"]);
     expect(found.stdout).toContain("old.archive.md");
+    // Memory rule: archives hidden.
+    const memoryList = await runCli(["list", dir, "--zone", "memory"]);
+    expect(memoryList.stdout).toContain("live.md");
+    expect(memoryList.stdout).not.toContain("old.archive.md");
+    const memorySearch = await runCli(["search", dir, "--query", "alpha", "--zone", "memory"]);
+    expect(memorySearch.stdout).toContain("live.md");
+    expect(memorySearch.stdout).not.toContain("old.archive.md");
     // --all is still accepted (now redundant) so older invocations keep working.
     const flagged = await runCli(["search", dir, "--query", "alpha", "--all"]);
     expect(flagged.stdout).toContain("old.archive.md");
+    await expect(runCli(["list", dir, "--zone", "bogus"])).rejects.toThrow(/--zone must be/);
     await fs.rm(dir, { recursive: true, force: true });
+  });
+
+  it("--zone picks the default folder when no directory is given", async () => {
+    const root = await makeDir();
+    await runCli(["memory-add", join(root, "memory"), "--content", "bank entry"]);
+    await runCli(["write", join(root, "notes"), "--name", "note.md", "--content", "writing entry"]);
+    const memory = await runCli(["list", "--zone", "memory"], root);
+    expect(memory.stdout).toContain("memory.md");
+    expect(memory.stdout).not.toContain("note.md");
+    const writing = await runCli(["list"], root);
+    expect(writing.stdout).toContain("note.md");
+    expect(writing.stdout).not.toContain("memory.md");
+    await fs.rm(root, { recursive: true, force: true });
   });
 
   it("exits non-zero with a usage hint on bad input", async () => {
