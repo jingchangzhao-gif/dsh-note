@@ -42,4 +42,13 @@ describe("zone stats", () => {
     expect(stats).toMatchObject({ files: 0, archives: 0, entries: 0, bytes: 0, largest: null });
     await fs.rm(dir, { recursive: true, force: true });
   });
+
+  it("sizes a zone that does not exist yet without creating it", async () => {
+    const root = await makeDir();
+    const zone = join(root, "memory");
+    const stats = await zoneStats(zone);
+    expect(stats).toMatchObject({ files: 0, archives: 0, entries: 0, bytes: 0, largest: null });
+    await expect(fs.stat(zone)).rejects.toThrow();
+    await fs.rm(root, { recursive: true, force: true });
+  });
 });

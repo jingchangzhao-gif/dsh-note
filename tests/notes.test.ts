@@ -60,6 +60,15 @@ describe("notes memory operations", () => {
     await fs.rm(dir, { recursive: true, force: true });
   });
 
+  it("reads a missing zone as empty without creating it", async () => {
+    const root = await makeDir();
+    const zone = join(root, "notes");
+    expect(await listNotes(zone)).toEqual([]);
+    expect(await searchNotes(zone, "anything")).toEqual([]);
+    await expect(fs.stat(zone)).rejects.toThrow(); // still absent: reads don't write
+    await fs.rm(root, { recursive: true, force: true });
+  });
+
   it("deleteNote removes a file and reports false when absent", async () => {
     const dir = await makeDir();
     await appendNote(dir, "gone.md", "hi");
