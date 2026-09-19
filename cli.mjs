@@ -58,8 +58,8 @@ Commands (dir defaults to ./notes, or ./memory for memory-*):
       Replace a note's whole body; optional --title/--tags/--type.
   edit <dir?> --name <file> --old <text> [--new <text>] [--all]
       Literal in-place body edit (front matter is never matched).
-  search <dir?> --query <words> [--limit <n>] [--all]
-      Free keyword search with snippets (--all also matches archives).
+  search <dir?> --query <words> [--limit <n>]
+      Free keyword search with snippets (archives included).
   forget <dir?> --name <file>
       Delete a note file.
   context <dir?> [--focus <text>] [--notes a.md,b.md] [--chars <n>] [--memory <dir>]
@@ -160,7 +160,9 @@ const handlers = {
 
   async list({ positional, flags }) {
     const dir = zoneOf("writing", positional[0]);
-    const notes = api.visibleOnly(await api.listNotes(dir), Boolean(flags.all));
+    // A folder given to the CLI is a writing zone, and writing listings show
+    // archives — the same rule note_list uses (only memory hides them).
+    const notes = await api.listNotes(dir);
     if (flags.json) return { json: notes };
     const lines = [`Notes in ${dir} (${notes.length}):`];
     for (const note of notes) {
@@ -231,10 +233,9 @@ const handlers = {
     const query = requireFlag(flags, "query", 'keywords, e.g. "pnpm merge"');
     const limit = api.clampSearchLimit(numberFlag(flags, "limit", "--limit"));
     const hits = await api.searchNotes(dir, query, { limit });
-    const visible = api.visibleOnly(hits, Boolean(flags.all));
-    if (flags.json) return { json: { query, dir, hits: visible } };
-    if (visible.length === 0) return { text: "No matches." };
-    const lines = visible.map(
+    if (flags.json) return { json: { query, dir, hits } };
+    if (hits.length === 0) return { text: "No matches." };
+    const lines = hits.map(
       (hit, index) =>
         `[${index + 1}] ${hit.title ?? hit.name} (score ${hit.score})\n${hit.snippet}`,
     );
