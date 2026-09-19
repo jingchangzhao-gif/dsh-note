@@ -301,6 +301,7 @@ macOS is identical with `./run.command` instead of `run.bat`.
 | `forget <dir?> --name f`                                               | Delete a note file                              |
 | `stats [dir]`                                                          | Zone inventory: files, archives, entries, bytes |
 | `map [dir] [--chars N] [--zone writing\|memory]`                       | Outline a zone: file lines + newest headings    |
+| `mindmap [dir] [--chars N] [--zone ...] [--file out.md]`               | The outline as a Mermaid mind map (renders)     |
 | `export <dir?> --file f.json`                                          | Snapshot the whole folder into one JSON file    |
 | `import <dir?> --file f.json [--force]`                                | Write a snapshot back (skips existing files)    |
 | `context <dir?> [--focus q] [--notes a,b] [--memory <dir>]`            | Assemble a small bounded context packet         |

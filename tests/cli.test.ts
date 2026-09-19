@@ -257,6 +257,30 @@ describe("cli.mjs end to end", () => {
     await fs.rm(dir, { recursive: true, force: true });
   });
 
+  it("mindmap prints a Mermaid block and can write it to a file", async () => {
+    const dir = await makeDir();
+    await runCli([
+      "memory-add",
+      dir,
+      "--name",
+      "d.md",
+      "--content",
+      "decision body",
+      "--title",
+      "use pnpm",
+    ]);
+    const printed = await runCli(["mindmap", dir, "--zone", "memory"]);
+    expect(printed.stdout).toContain("```mermaid");
+    expect(printed.stdout).toContain('root["memory"]');
+    expect(printed.stdout).toContain("use pnpm");
+
+    const out = join(dir, "map.md");
+    const written = await runCli(["mindmap", dir, "--zone", "memory", "--file", out]);
+    expect(written.stdout).toContain(`Wrote ${out}`);
+    expect(await fs.readFile(out, "utf8")).toContain("```mermaid");
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
   it("stats reports the zone size, in text and as JSON", async () => {
     const dir = await makeDir();
     await runCli(["remember", dir, "--name", "a.md", "--content", "hello"]);

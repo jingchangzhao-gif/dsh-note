@@ -161,3 +161,33 @@ export function renderZoneMap(map: ZoneMap, label = "zone"): string {
   if (map.omitted > 0) lines.push(`… ${map.omitted} more file(s) not shown`);
   return lines.join("\n");
 }
+
+/** Longest label a rendered mind map keeps. */
+const MERMAID_LABEL_CHARS = 60;
+
+/** A mind-map label lives inside ["…"]: one line, no quotes, kept short. */
+function mermaidText(text: string): string {
+  const flat = text.replace(/\s+/g, " ").replace(/"/g, "'").trim();
+  return flat.length > MERMAID_LABEL_CHARS ? `${flat.slice(0, MERMAID_LABEL_CHARS)}…` : flat;
+}
+
+/**
+ * The same outline as a Mermaid mind map, for a human: paste the block into any
+ * markdown viewer (GitHub, Obsidian, VS Code, the dsh GUI) and it renders.
+ * Labels are quoted and sanitized so a note title cannot break the diagram.
+ */
+export function renderMermaidMap(map: ZoneMap, label = "zone"): string {
+  const lines = ["```mermaid", "mindmap", `  root["${mermaidText(label)}"]`];
+  let nodes = 0;
+  for (const file of map.files) {
+    nodes += 1;
+    lines.push(`    n${nodes}["${mermaidText(mapFileLine(file).replace(/^- /, ""))}"]`);
+    for (const heading of file.headings) {
+      nodes += 1;
+      lines.push(`      n${nodes}["${mermaidText(heading)}"]`);
+    }
+  }
+  if (map.omitted > 0) lines.push(`    more["… ${map.omitted} more file(s) not shown"]`);
+  lines.push("```");
+  return lines.join("\n");
+}

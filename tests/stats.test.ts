@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { addMemoryEntry, compactMemory } from "../src/memory";
 import { appendNote, writeNote } from "../src/notes";
-import { renderZoneMap, zoneMap, zoneStats } from "../src/stats";
+import { renderMermaidMap, renderZoneMap, zoneMap, zoneStats } from "../src/stats";
 
 async function makeDir(): Promise<string> {
   return fs.mkdtemp(join(tmpdir(), "dsh-note-stats-"));
@@ -130,6 +130,32 @@ describe("zone map", () => {
     const shown = await zoneMap(dir, { includeArchives: true });
     expect(shown.files.map((file) => file.name)).toEqual(["live.md", "old.archive.md"]);
     expect(renderZoneMap(shown, "writing")).toMatch(/^- live\.md \(\d+ bytes\)$/m);
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
+  it("renders the same outline as a sanitized Mermaid mind map", async () => {
+    const dir = await makeDir();
+    await addMemoryEntry(dir, "body", {
+      name: "d.md",
+      title: 'use "pnpm"',
+      when: "2024-02-05T10:30:00.000Z",
+    });
+    await addMemoryEntry(dir, "long body", { name: "long.md", title: "t".repeat(100) });
+    const mermaid = renderMermaidMap(await zoneMap(dir), "memory");
+    expect(mermaid.startsWith('```mermaid\nmindmap\n  root["memory"]')).toBe(true);
+    expect(mermaid.endsWith("```")).toBe(true);
+    expect(mermaid).toContain("n1[\"d.md — use 'pnpm' (1 entry,"); // quotes neutralized
+    expect(mermaid).toContain("2024-02-05 — use 'pnpm'"); // date shortened, same label
+    expect(mermaid).not.toContain('"pnpm"');
+    const longLabel = mermaid.split("\n").find((line) => line.includes("long.md"));
+    expect(longLabel).toContain("…");
+    expect(longLabel?.length).toBeLessThan(90); // capped at 60 chars inside ["…"]
+
+    const empty = renderMermaidMap(
+      { dir, files: [], total: 0, omitted: 2, truncated: true },
+      "writing",
+    );
+    expect(empty).toContain('more["… 2 more file(s) not shown"]');
     await fs.rm(dir, { recursive: true, force: true });
   });
 });
