@@ -18,7 +18,16 @@ import {
   withFrontMatter,
 } from "./frontmatter";
 import type { FrontMeta } from "./frontmatter";
-import { ARCHIVE_MARK, ARCHIVE_TYPE, ensureDir, isArchive, listNotes, notePath, tokenize } from "./notes";
+import {
+  ARCHIVE_MARK,
+  ARCHIVE_TYPE,
+  ensureDir,
+  isArchive,
+  listNotes,
+  notePath,
+  tokenize,
+  writeTextFile,
+} from "./notes";
 
 export const DEFAULT_MEMORY_NOTE = "memory.md";
 
@@ -158,7 +167,7 @@ async function ensureMemoryNote(zoneDir: string, name: string): Promise<{ path: 
     updated: nowIso(),
   };
   await ensureDir(dirname(path));
-  await fs.writeFile(path, withFrontMatter(meta, ""), "utf8");
+  await writeTextFile(path, withFrontMatter(meta, ""));
   return { path };
 }
 
@@ -167,7 +176,7 @@ async function touchUpdated(path: string): Promise<void> {
   const raw = await fs.readFile(path, "utf8");
   const fm = parseFrontMatter(raw);
   if (!fm.hasFrontMatter) return;
-  await fs.writeFile(path, withFrontMatter({ ...fm.meta, updated: nowIso() }, fm.body), "utf8");
+  await writeTextFile(path, withFrontMatter({ ...fm.meta, updated: nowIso() }, fm.body));
 }
 
 /** Append one timestamped entry to a memory file (creating it when missing). */
@@ -251,27 +260,33 @@ export async function recallMemory(
     if (tagList.length > 0) headerLines.push(`tags: ${tagList.join(", ")}`);
     if (fm.meta.type && fm.meta.type !== "memory") headerLines.push(`type: ${fm.meta.type}`);
     const header = headerLines.join("\n");
+    // The budget is the size of the reply, so count the section header and the
+    // "\n" that joins this section to the previous one — not just entry bodies.
+    const headerChars = header.length + 1;
+    const sectionSep = sections.length > 0 ? 1 : 0;
     let bodyText = "";
+    let hitLimit = false;
     for (const entry of matched) {
       if (acceptedTotal >= limit) {
         truncated = true;
+        hitLimit = true;
         break;
       }
-      if (used + bodyText.length + entry.text.length > budget) {
+      const candidate = bodyText ? `${bodyText}\n${entry.text}` : entry.text;
+      if (used + sectionSep + headerChars + candidate.length > budget) {
         truncated = true;
         break;
       }
-      bodyText += `${bodyText ? "\n" : ""}${entry.text}`;
+      bodyText = candidate;
       acceptedTotal += 1;
     }
-    if (!bodyText) continue;
-    sections.push(`${header}\n${bodyText}`);
-    files += 1;
-    used += header.length + bodyText.length + 1;
-    if (acceptedTotal >= limit) {
-      truncated = true;
-      break;
+    if (bodyText) {
+      sections.push(`${header}\n${bodyText}`);
+      files += 1;
+      used += sectionSep + headerChars + bodyText.length;
     }
+    // Limit reached and a further entry existed: nothing later can be shown.
+    if (hitLimit) break;
   }
   return { content: sections.join("\n"), files, truncated };
 }
@@ -291,8 +306,10 @@ export async function updateMemoryMeta(
   }
   const fm = parseFrontMatter(raw);
   const next: FrontMeta = { ...fm.meta, ...patch, updated: nowIso() };
-  const changed = JSON.stringify(fm.meta) !== JSON.stringify(next);
-  await fs.writeFile(path, withFrontMatter(next, fm.body), "utf8");
+  // `updated` always moves, so compare the merged fields only: reporting
+  // changed:true for a no-op merge is what makes a caller re-fetch needlessly.
+  const changed = Object.entries(patch).some(([key, value]) => fm.meta[key] !== value);
+  await writeTextFile(path, withFrontMatter(next, fm.body));
   return { name: basename(path), changed, meta: next };
 }
 
@@ -346,10 +363,10 @@ export async function compactMemory(
   const removedText = removed.map((entry) => entry.text).join("\n\n");
   const archiveBody =
     archiveFm.body.length > 0 ? `${archiveFm.body.trimEnd()}\n\n${removedText}` : removedText;
-  await fs.writeFile(archivePath, withFrontMatter(archiveMeta, archiveBody), "utf8");
+  await writeTextFile(archivePath, withFrontMatter(archiveMeta, archiveBody));
   const keptText = keptEntries.map((entry) => entry.text).join("\n\n");
   const body = [parsed.preamble, keptText].filter((part) => part.length > 0).join("\n\n");
-  await fs.writeFile(path, withFrontMatter({ ...fm.meta, updated: nowIso() }, body), "utf8");
+  await writeTextFile(path, withFrontMatter({ ...fm.meta, updated: nowIso() }, body));
   return { name, path, kept: keptEntries.length, archived: removed.length, archive };
 }
 
@@ -372,6 +389,6 @@ export async function removeMemoryEntries(
   const body = [parsed.preamble, keptEntries.map((entry) => entry.text).join("\n\n")]
     .filter((part) => part.length > 0)
     .join("\n\n");
-  await fs.writeFile(path, withFrontMatter(meta, body), "utf8");
+  await writeTextFile(path, withFrontMatter(meta, body));
   return { name: basename(path), removed };
 }

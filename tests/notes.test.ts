@@ -129,6 +129,18 @@ describe("notes memory operations", () => {
     await fs.rm(dir, { recursive: true, force: true });
   });
 
+  it("reports nested names zone-relative and leaves no temp files behind", async () => {
+    const dir = await makeDir();
+    const appended = await appendNote(dir, "log/today.md", "first");
+    expect(appended.name).toBe("log/today.md");
+    await writeNote(dir, "log/today.md", "replaced body", { title: "Today" });
+    const edited = await editNote(dir, "log/today.md", [{ old: "replaced", new: "new" }]);
+    expect(edited.name).toBe("log/today.md");
+    // Atomic writes stage a sibling temp file; every one must be renamed away.
+    expect(await fs.readdir(join(dir, "log"))).toEqual(["today.md"]);
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
   it("searchNotes matches all keywords, ranks hits, skips non-notes", async () => {
     const dir = await makeDir();
     await writeNote(dir, "a.md", "# Alpha\nthe quick brown fox and the quick cat", {});
