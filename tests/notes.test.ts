@@ -129,6 +129,19 @@ describe("notes memory operations", () => {
     await fs.rm(dir, { recursive: true, force: true });
   });
 
+  it("keeps a leading rule in the body when the note is rewritten", async () => {
+    const dir = await makeDir();
+    const body = "---\nplain intro line\n---\n\nreal body text";
+    await writeNote(dir, "rule.md", body);
+    expect((await readNoteFull(dir, "rule.md")).body).toContain("plain intro line");
+    await editNote(dir, "rule.md", [{ old: "real body text", new: "EDITED body" }]);
+    const text = await readNote(dir, "rule.md");
+    expect(text).toContain("plain intro line"); // survived the rewrite
+    expect(text).toContain("EDITED body");
+    expect(text).not.toContain("updated:"); // and no front matter was invented
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
   it("appendNote keeps the front matter and refreshes updated", async () => {
     const dir = await makeDir();
     await writeNote(dir, "a.md", "first", { title: "A" });

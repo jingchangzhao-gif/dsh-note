@@ -32,6 +32,20 @@ describe("front matter", () => {
     expect(parsed.hasFrontMatter).toBe(false);
   });
 
+  it("treats a keyless leading block as body text, not front matter", () => {
+    // A note that opens with a horizontal rule (or a pasted quotation) must not
+    // have that block read as metadata — the next write would delete it.
+    const rule = "---\nplain intro line\n---\n\nreal body";
+    const parsed = parseFrontMatter(rule);
+    expect(parsed.hasFrontMatter).toBe(false);
+    expect(parsed.meta).toEqual({});
+    expect(parsed.body).toBe(rule);
+
+    const empty = parseFrontMatter("---\n---\nbody");
+    expect(empty.hasFrontMatter).toBe(false);
+    expect(empty.body).toBe("---\n---\nbody");
+  });
+
   it("round-trips meta and body canonically", () => {
     const meta = { title: "T", summary: "compact digest" };
     const body = "line one\nline two";
