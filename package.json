@@ -1,6 +1,6 @@
 {
   "name": "dsh-note",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Long-term markdown memory for DeepSeek Harness (dsh) agents — a writing-notes zone plus a memory bank with easy front matter, free local search, full edit/update and tail-first compact recall. Remember, so you don't re-send.",
   "type": "module",
   "main": "lib/index.js",
@@ -9,7 +9,7 @@
     ".": "./lib/index.js",
     "./package.json": "./package.json"
   },
-  "files": ["lib", "docs/workflows.md", "cordis.patch.yml", "SECURITY.md"],
+  "files": ["lib", "docs/workflows.md", "CHANGELOG.md", "cordis.patch.yml", "SECURITY.md"],
   "scripts": {
     "build": "tsdown",
     "coverage": "vitest run --coverage",
