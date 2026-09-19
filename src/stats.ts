@@ -1,10 +1,12 @@
-// Zone inventory for dsh-note: how big is a notes/memory folder right now?
-// Pure read-only file work, so an agent can decide how much to recall (and
-// whether to compact) before spending a single token on the content itself.
+// Zone overviews for dsh-note: how big is a notes/memory folder right now, and
+// what shape does it have? Pure read-only file work, so an agent can decide
+// what to recall (and whether to compact) before spending a token on content:
+// `zoneStats` gives the totals, `zoneMap` the outline.
 
 import { promises as fs } from "node:fs";
 import { parseFrontMatter } from "./frontmatter";
-import { parseMemory } from "./memory";
+import { clampInt, parseMemory } from "./memory";
+import type { MemoryEntry } from "./memory";
 import { isArchive, listNotes } from "./notes";
 
 export interface ZoneStats {
@@ -45,4 +47,117 @@ export async function zoneStats(zoneDir: string): Promise<ZoneStats> {
     if (!largest || size > largest.bytes) largest = { name: note.name, bytes: size };
   }
   return { dir: zoneDir, files, archives, entries, bytes, largest };
+}
+
+/** Newest entry headings shown per file, so one huge bank file cannot eat the map. */
+const MAP_HEADINGS_PER_FILE = 5;
+/** Longest heading a map keeps before eliding the tail. */
+const MAP_HEADING_CHARS = 100;
+
+export interface MapFile {
+  name: string;
+  title?: string;
+  /** timestamped entries in the file */
+  entries: number;
+  bytes: number;
+  /** newest entry headings, newest first (memory files only) */
+  headings: string[];
+}
+
+export interface ZoneMap {
+  dir: string;
+  /** files actually listed, in name order */
+  files: MapFile[];
+  /** files in the zone before the char budget cut anything */
+  total: number;
+  /** files the budget left out */
+  omitted: number;
+  /** true when headings or whole files were dropped to fit */
+  truncated: boolean;
+}
+
+export interface MapOptions {
+  /** character budget for the rendered outline (default 1200) */
+  chars?: number;
+  /** count archive files too (the writing rule; memory hides them) */
+  includeArchives?: boolean;
+}
+
+/** One file's line in a map; shared so budgeting and rendering cannot drift. */
+function mapFileLine(file: MapFile): string {
+  const title = file.title ? ` — ${file.title}` : "";
+  const count =
+    file.entries > 0 ? `${file.entries} ${file.entries === 1 ? "entry" : "entries"}, ` : "";
+  return `- ${file.name}${title} (${count}${file.bytes} bytes)`;
+}
+
+/** Entry heading for a map: no "## ", date only, elided when very long. */
+function mapHeading(entry: MemoryEntry): string {
+  const newline = entry.text.indexOf("\n");
+  const line = (newline < 0 ? entry.text : entry.text.slice(0, newline))
+    .replace(/^##[ \t]+/, "")
+    .trim();
+  // The exact time rarely matters for an outline; recalling shows it in full.
+  const short = entry.when ? line.replace(entry.when, entry.when.slice(0, 10)) : line;
+  return short.length > MAP_HEADING_CHARS ? `${short.slice(0, MAP_HEADING_CHARS)}…` : short;
+}
+
+/**
+ * Outline a zone: one line per file plus the newest entry headings of each,
+ * bounded by a character budget. Deliberately cheaper than recalling bodies —
+ * headings usually carry the gist, and a map is enough to pick what to recall.
+ */
+export async function zoneMap(zoneDir: string, options: MapOptions = {}): Promise<ZoneMap> {
+  const budget = clampInt(options.chars, 1200, 200, 20_000);
+  const notes = (await listNotes(zoneDir)).filter(
+    (note) => options.includeArchives || !isArchive(note.name, note.meta),
+  );
+  const files: MapFile[] = [];
+  let used = 0;
+  let omitted = 0;
+  let truncated = false;
+  for (let index = 0; index < notes.length; index += 1) {
+    const note = notes[index];
+    // listNotes already skipped anything unreadable; a vanished file should be
+    // loud here rather than silently shrinking the map.
+    const raw = await fs.readFile(note.path, "utf8");
+    const bytes = Buffer.byteLength(raw, "utf8");
+    const { entries } = parseMemory(parseFrontMatter(raw).body);
+    const file: MapFile = {
+      name: note.name,
+      title: note.title,
+      entries: entries.length,
+      bytes,
+      headings: [],
+    };
+    const line = mapFileLine(file);
+    if (used + line.length + 1 > budget) {
+      omitted = notes.length - index;
+      truncated = true;
+      break;
+    }
+    used += line.length + 1;
+    for (const heading of entries.slice(-MAP_HEADINGS_PER_FILE).reverse().map(mapHeading)) {
+      const cost = heading.length + 3; // "  " + "\n"
+      if (used + cost > budget) {
+        truncated = true;
+        break;
+      }
+      used += cost;
+      file.headings.push(heading);
+    }
+    files.push(file);
+  }
+  return { dir: zoneDir, files, total: notes.length, omitted, truncated };
+}
+
+/** Render a map the same way for the tool and the CLI. */
+export function renderZoneMap(map: ZoneMap, label = "zone"): string {
+  const lines = [`${label} map: ${map.total} file(s)`];
+  for (const file of map.files) {
+    lines.push(mapFileLine(file));
+    for (const heading of file.headings) lines.push(`  ${heading}`);
+  }
+  if (map.omitted > 0) lines.push(`… ${map.omitted} more file(s) not shown`);
+  return lines.join("\n");
 }

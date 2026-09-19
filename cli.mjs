@@ -32,6 +32,7 @@ const COMMANDS = new Set([
   "search",
   "forget",
   "stats",
+  "map",
   "export",
   "import",
   "context",
@@ -68,6 +69,9 @@ Commands (dir defaults to ./notes, or ./memory for memory-*):
       Delete a note file.
   stats [dir]
       Size up a zone: files, archives, memory entries, bytes, largest file.
+  map [dir] [--chars <n>] [--zone writing|memory]
+      Outline a zone: one line per file plus its newest entry headings,
+      trimmed to the --chars budget (default 1200).
   export <dir?> --file <bundle.json>
       Snapshot the whole folder (archives included) into one JSON file.
   import <dir?> --file <bundle.json> [--force]
@@ -288,6 +292,17 @@ const handlers = {
     return { text: lines.join("\n") };
   },
 
+  async map({ positional, flags }) {
+    const zone = zoneFlag(flags.zone);
+    const dir = zoneOf(zone, positional[0]);
+    const map = await api.zoneMap(dir, {
+      chars: numberFlag(flags, "chars", "--chars"),
+      includeArchives: zone !== "memory",
+    });
+    if (flags.json) return { json: { zone, ...map } };
+    return { text: api.renderZoneMap(map, zone) };
+  },
+
   async export({ positional, flags }) {
     const dir = zoneOf("writing", positional[0]);
     const file = requireFlag(flags, "file", "bundle to write, e.g. bank.json");
@@ -459,6 +474,7 @@ const USAGE_LINES = {
   search: "search [dir] <query words...> [--limit N] [--zone writing|memory]",
   forget: "forget [dir] <file>",
   stats: "stats [dir]",
+  map: "map [dir] [--chars N] [--zone writing|memory]",
   export: "export [dir] --file <bundle.json>",
   import: "import [dir] --file <bundle.json> [--force]",
   context: "context [dir] [--focus text] [--notes a.md,b.md] [--memory dir]",

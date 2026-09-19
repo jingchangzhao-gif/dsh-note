@@ -116,7 +116,13 @@ function parseDateOrThrow(value: string | undefined, label: string): number | un
   return ms;
 }
 
-function clampInt(value: number | undefined, fallback: number, min: number, max: number): number {
+/** Clamp an optional integer-ish option into [min, max], tolerating NaN. */
+export function clampInt(
+  value: number | undefined,
+  fallback: number,
+  min: number,
+  max: number,
+): number {
   if (value === undefined || Number.isNaN(value)) return fallback;
   const rounded = Math.round(value);
   return Math.min(max, Math.max(min, rounded));

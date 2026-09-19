@@ -235,6 +235,28 @@ describe("cli.mjs end to end", () => {
     await fs.rm(dst, { recursive: true, force: true });
   });
 
+  it("map outlines a zone in text and as JSON", async () => {
+    const dir = await makeDir();
+    await runCli([
+      "memory-add",
+      dir,
+      "--name",
+      "d.md",
+      "--content",
+      "decision body",
+      "--title",
+      "use pnpm",
+    ]);
+    const text = await runCli(["map", dir, "--zone", "memory"]);
+    expect(text.stdout).toContain("memory map: 1 file(s)");
+    expect(text.stdout).toContain("use pnpm");
+    const json = JSON.parse((await runCli(["map", dir, "--zone", "memory", "--json"])).stdout) as {
+      files: { headings: string[] }[];
+    };
+    expect(json.files[0].headings[0]).toContain("use pnpm");
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
   it("stats reports the zone size, in text and as JSON", async () => {
     const dir = await makeDir();
     await runCli(["remember", dir, "--name", "a.md", "--content", "hello"]);

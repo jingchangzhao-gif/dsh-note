@@ -16,7 +16,8 @@ import {
   zoneRoot,
 } from "./notes";
 import type { NoteFile, Zone } from "./notes";
-import { zoneStats } from "./stats";
+import { renderZoneMap, zoneMap, zoneStats } from "./stats";
+import type { ZoneMap } from "./stats";
 import { booleanOf, cwdOf, number, text, type ExecShape } from "./tool-util";
 import { clampSearchLimit, compactView, tailView, visibleOnly } from "./view";
 
@@ -446,6 +447,61 @@ export const noteStatsTool = defineTool({
       largestName: stats.largest?.name ?? "",
       largestBytes: stats.largest?.bytes ?? 0,
     };
+  },
+});
+
+export const noteMapTool = defineTool({
+  name: "note_map",
+  description:
+    "Outline a zone cheaply: one line per file plus each file's newest entry headings, bounded by chars. Use it to see what a bank holds (topics and recency) before deciding which file to recall, or to spot a file worth compacting. Headings usually carry the gist, so this costs far less than recalling bodies.",
+  parameters: {
+    zone: { type: "string", description: '"writing" (default) or "memory".' },
+    chars: {
+      type: "number",
+      description: "Character budget for the outline (default 1200, cap 20000).",
+    },
+    dir: { type: "string", description: "Optional directory override for the selected zone." },
+  },
+  output: {
+    schema: {
+      type: "object",
+      properties: {
+        zone: { type: "string" },
+        dir: { type: "string" },
+        total: { type: "number" },
+        omitted: { type: "number" },
+        truncated: { type: "boolean" },
+        files: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              name: { type: "string" },
+              title: { type: "string" },
+              entries: { type: "number" },
+              bytes: { type: "number" },
+              headings: { type: "array", items: { type: "string" } },
+            },
+            additionalProperties: false,
+          },
+        },
+      },
+      additionalProperties: false,
+    },
+    render: (_args, value) => {
+      const v = value as ZoneMap & { zone?: string };
+      return [{ type: "text", text: renderZoneMap(v, v.zone ?? "zone") }];
+    },
+  },
+  async execute(args, exec) {
+    const { zone: zoneValue, chars, dir } = (args ?? {}) as Record<string, unknown>;
+    const zone = zoneArg(zoneValue, "writing");
+    const root = zoneDir(zone, cwdOf(exec as ExecShape | undefined), text(dir));
+    const map = await zoneMap(root, {
+      chars: number(chars),
+      includeArchives: zone !== "memory",
+    });
+    return { zone, ...map };
   },
 });
 

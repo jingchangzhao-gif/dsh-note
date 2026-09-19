@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `note_map` tool and `map` CLI command: a free outline of a zone — one line per
+  file plus each file's newest entry headings, newest first, trimmed to a
+  character budget. Headings usually carry the gist, so the outline is often
+  enough to choose which file to recall without paying for entry bodies.
+
 ## [0.3.0] - 2026-09-19
 
 Hardening and reach: the recall paths were audited end to end, two features
