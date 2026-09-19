@@ -49,6 +49,23 @@ describe("context assembly", () => {
     await fs.rm(root, { recursive: true, force: true });
   });
 
+  it("skips blank note names and notes with an empty body", async () => {
+    const root = await makeRoot();
+    await writeNote(join(root, "notes"), "empty.md", "");
+    const result = await buildContext({ notes: ["   ", "empty.md"], cwd: root });
+    expect(result.parts).toBe(0);
+    expect(result.context).toBe("");
+    await fs.rm(root, { recursive: true, force: true });
+  });
+
+  it("falls back to the note name when a note carries no title", async () => {
+    const root = await makeRoot();
+    await writeNote(join(root, "notes"), "untitled.md", "body without a heading");
+    const result = await buildContext({ notes: ["untitled.md"], cwd: root });
+    expect(result.context).toContain("# untitled.md");
+    await fs.rm(root, { recursive: true, force: true });
+  });
+
   it("returns an empty context when nothing matches", async () => {
     const root = await makeRoot();
     const result = await buildContext({ focus: "zzz-no-such-topic", cwd: root });

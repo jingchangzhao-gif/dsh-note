@@ -230,6 +230,70 @@ describe("note tools", () => {
     expect(renderText(memoryRecallTool, {}, recall)).toBe("(no memory matched)");
     await fs.rm(root, { recursive: true, force: true });
   });
+
+  it("note_context skips a named note that does not exist", async () => {
+    const root = await makeRoot();
+    await addMemoryEntry(join(root, "memory"), "still here");
+    // defineTool validates args before execute, so only the missing-note path
+    // is reachable here; the non-string filter inside execute is defensive.
+    const result = await run<{ context: string }>(noteContextTool, root, {
+      notes: ["ghost.md"],
+    });
+    expect(result.context).toContain("still here");
+    // No `notes` argument at all: the empty-name list must still work.
+    const withoutNames = await run<{ context: string }>(noteContextTool, root, {});
+    expect(withoutNames.context).toContain("still here");
+    await fs.rm(root, { recursive: true, force: true });
+  });
+
+  it("note_search treats an unknown zone as all zones", async () => {
+    const root = await makeRoot();
+    await writeNote(join(root, "notes"), "w.md", "token here");
+    const result = await run<{ zone: string; hits: unknown[] }>(noteSearchTool, root, {
+      query: "token",
+      zone: "bogus",
+    });
+    expect(result.zone).toBe("all");
+    expect(result.hits).toHaveLength(1);
+    await fs.rm(root, { recursive: true, force: true });
+  });
+
+  it("renders each note tool outcome as model-facing text", async () => {
+    const root = await makeRoot();
+    const remembered = await run<{ name: string }>(noteRememberTool, root, {
+      name: "s.md",
+      content: "hello",
+    });
+    expect(renderText(noteRememberTool, {}, remembered)).toBe("Remembered in s.md");
+    const wrote = await run<{ name: string; created: boolean }>(noteWriteTool, root, {
+      name: "a.md",
+      content: "one",
+    });
+    expect(renderText(noteWriteTool, {}, wrote)).toBe("Wrote a.md (created)");
+    const edited = await run<{ edits: number; changed: boolean }>(noteEditTool, root, {
+      name: "a.md",
+      old: "one",
+      new: "two",
+    });
+    expect(renderText(noteEditTool, {}, edited)).toBe(
+      "Edited a.md: 1 replacement(s), changed: true",
+    );
+    const listed = await run<{ notes: { name: string }[] }>(noteListTool, root, {});
+    expect(renderText(noteListTool, {}, listed)).toContain("Notes [writing] in");
+    const recalled = await run<{ content: string; truncated: boolean }>(noteRecallTool, root, {
+      name: "a.md",
+      compact: true,
+    });
+    expect(renderText(noteRecallTool, {}, recalled)).toBe(recalled.content);
+    const found = await run<{ hits: { name: string }[] }>(noteSearchTool, root, { query: "two" });
+    const searchText = renderText(noteSearchTool, { query: "two" }, found);
+    expect(searchText).toContain("[1] a.md"); // no title, so the name is used
+    expect(searchText).toContain("two");
+    await expect(run(noteWriteTool, root, { name: "b.md" })).rejects.toThrow(
+      /Note content is required/,
+    );
+    await fs.rm(root, { recursive: true, force: true });
+  });
 });
 
 describe("memory tools", () => {
@@ -344,6 +408,32 @@ describe("memory tools", () => {
     expect(renderText(memoryRemoveTool, { match: "keep" }, single)).toContain("Removed 1 entry");
     await expect(run(memoryRemoveTool, root, { name: "m.md", match: "" })).rejects.toThrow(
       /match text/,
+    );
+    await fs.rm(root, { recursive: true, force: true });
+  });
+
+  it("renders each memory tool outcome as model-facing text", async () => {
+    const root = await makeRoot();
+    const added = await run<{ name: string }>(memoryAddTool, root, {
+      content: "remember this",
+      title: "a titled entry",
+    });
+    expect(renderText(memoryAddTool, {}, added)).toBe("Remembered in memory.md");
+    const entry = await readNoteFull(join(root, "memory"), "memory.md");
+    expect(entry.body).toContain("— a titled entry"); // title rides the heading
+    const recalled = await run<{ content: string }>(memoryRecallTool, root, {});
+    expect(renderText(memoryRecallTool, {}, recalled)).toBe(recalled.content);
+    const updated = await run<{ name: string; changed: boolean }>(memoryUpdateTool, root, {
+      name: "memory.md",
+      meta: { summary: "digest" },
+    });
+    expect(renderText(memoryUpdateTool, {}, updated)).toBe("Updated memory.md (changed: true)");
+    const compacted = await run<{ kept: number; archived: number }>(memoryCompactTool, root, {
+      name: "memory.md",
+      keep: 1,
+    });
+    expect(renderText(memoryCompactTool, {}, compacted)).toBe(
+      "Compacted memory.md: kept 1, archived 0",
     );
     await fs.rm(root, { recursive: true, force: true });
   });

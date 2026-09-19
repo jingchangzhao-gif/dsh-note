@@ -58,6 +58,11 @@ describe("shared note views", () => {
     expect(compactView(withSummary).content).toBe("summary: the digest\n\ntail text");
   });
 
+  it("tail view defaults to one character when no size is given", () => {
+    const full = note({ body: "body", raw: "0123456789" });
+    expect(tailView(full)).toEqual({ content: "…9", truncated: true });
+  });
+
   it("tail view counts the raw text and clamps bad input", () => {
     const full = note({ body: "body", raw: "0123456789" });
     expect(tailView(full, 4)).toEqual({ content: "…6789", truncated: true });
