@@ -81,16 +81,16 @@ export async function buildContext(options: ContextOptions = {}): Promise<Contex
   );
   if (recall.content) parts.push(`# memory (recent${focus ? `/relevant` : ""})\n${recall.content}`);
 
-  let context = "";
-  let truncated = false;
-  for (let i = parts.length - 1; i >= 0; i -= 1) {
-    const candidate = context ? `${parts[i]}\n\n${context}` : parts[i];
-    if (candidate.length > budget) {
-      truncated = true;
-      continue;
-    }
-    context = candidate;
+  // Keep the newest parts and drop whole ones from the oldest end — the order
+  // they were assembled in (note tails, then focus hits, then memory). Walking
+  // newest-first with "keep whatever fits" could drop the focus hits and still
+  // keep an older note tail, which is the reverse of what this packet is for.
+  let start = 0;
+  let context = parts.join("\n\n");
+  while (start < parts.length && context.length > budget) {
+    start += 1;
+    context = parts.slice(start).join("\n\n");
   }
 
-  return { context, chars: context.length, parts: parts.length, truncated };
+  return { context, chars: context.length, parts: parts.length, truncated: start > 0 };
 }

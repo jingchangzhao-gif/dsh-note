@@ -49,6 +49,26 @@ describe("context assembly", () => {
     await fs.rm(root, { recursive: true, force: true });
   });
 
+  it("drops the oldest parts first, keeping the focus hits and memory", async () => {
+    const root = await makeRoot();
+    // Oldest part: a short note tail. Middle: the focus search hit. Newest:
+    // memory. The old tail plus memory fits the budget on its own, which is
+    // exactly the trap — a newest-first greedy pass would drop the focus hit
+    // and keep the stale tail instead.
+    await writeNote(join(root, "notes"), "old.md", "OLD-TAIL-MARKER");
+    await writeNote(join(root, "notes"), "focus.md", "FOCUS-HIT ".repeat(40));
+    await addMemoryEntry(join(root, "memory"), "focus-relevant memory marker " + "m".repeat(300), {
+      when: new Date("2024-03-02T00:00:00Z").toISOString(),
+    });
+    const result = await buildContext({ focus: "focus", notes: ["old.md"], chars: 500, cwd: root });
+    expect(result.parts).toBe(3);
+    expect(result.truncated).toBe(true);
+    expect(result.chars).toBeLessThanOrEqual(500);
+    expect(result.context).toContain("focus-relevant memory marker");
+    expect(result.context).not.toContain("OLD-TAIL-MARKER");
+    await fs.rm(root, { recursive: true, force: true });
+  });
+
   it("skips blank note names and notes with an empty body", async () => {
     const root = await makeRoot();
     await writeNote(join(root, "notes"), "empty.md", "");
