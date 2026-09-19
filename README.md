@@ -187,7 +187,9 @@ Appends a `## <ISO timestamp>` entry to `memory.md` (or `name` when given).
 ```
 
 Newest-first, bounded. Supports `name`, `tags`, `type`, `newerThan`,
-`olderThan`. Without filters it returns just the recent tail of the bank.
+`olderThan`. Each matching file leads with its `summary` front matter field
+when set, then its entries. Without filters it returns just the recent tail of
+the bank.
 
 ### `memory_update`
 

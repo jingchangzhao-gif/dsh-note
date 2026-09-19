@@ -428,6 +428,8 @@ describe("memory tools", () => {
       meta: { summary: "digest" },
     });
     expect(renderText(memoryUpdateTool, {}, updated)).toBe("Updated memory.md (changed: true)");
+    const digestRecall = await run<{ content: string }>(memoryRecallTool, root, {});
+    expect(digestRecall.content).toContain("summary: digest"); // the stored digest leads
     const compacted = await run<{ kept: number; archived: number }>(memoryCompactTool, root, {
       name: "memory.md",
       keep: 1,

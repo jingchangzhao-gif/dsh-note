@@ -255,7 +255,12 @@ export async function recallMemory(
     }
     if (matched.length === 0) continue;
     matched.sort((a, b) => b.whenMs - a.whenMs || b.text.localeCompare(a.text));
+    // The file's `summary` (written by memory_update) is its compact digest:
+    // show it first, the way note_recall's compact view does, so the model gets
+    // the gist without paying for every entry.
+    const summary = fm.meta.summary?.trim();
     const headerLines = [`# ${fm.meta.title?.trim() || file.name}`];
+    if (summary) headerLines.push(`summary: ${summary}`);
     const tagList = parseTagsList(fm.meta.tags);
     if (tagList.length > 0) headerLines.push(`tags: ${tagList.join(", ")}`);
     if (fm.meta.type && fm.meta.type !== "memory") headerLines.push(`type: ${fm.meta.type}`);

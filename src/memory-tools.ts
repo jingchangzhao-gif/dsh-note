@@ -76,7 +76,7 @@ export const memoryAddTool = defineTool({
 export const memoryRecallTool = defineTool({
   name: "memory_recall",
   description:
-    "Recall the small relevant chunk of the long-term memory bank: newest entries first, bounded by limit and chars. Filter by name/query/tags/type/dates. Without filters this is just the recent tail — never the whole history — keeping token cost minimal.",
+    "Recall the small relevant chunk of the long-term memory bank: newest entries first, bounded by limit and chars. Each matching file leads with its summary front matter field when set, then its entries. Filter by name/query/tags/type/dates. Without filters this is just the recent tail — never the whole history — keeping token cost minimal.",
   parameters: {
     name: { type: "string", description: "Limit to one topic file, e.g. decisions.md." },
     query: {

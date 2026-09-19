@@ -192,6 +192,20 @@ describe("memory bank", () => {
     await fs.rm(dir, { recursive: true, force: true });
   });
 
+  it("recall leads with the summary memory_update stored, inside the budget", async () => {
+    const dir = await makeDir();
+    await seed(dir);
+    await updateMemoryMeta(dir, "decisions.md", { summary: "digest of tooling choices" });
+    const result = await recallMemory(dir, { name: "decisions.md" });
+    const summaryAt = result.content.indexOf("summary: digest of tooling choices");
+    expect(summaryAt).toBeGreaterThanOrEqual(0);
+    expect(summaryAt).toBeLessThan(result.content.indexOf("## 2024-01-03")); // digest first
+    // The summary rides the section header, so it counts against the budget.
+    const tight = await recallMemory(dir, { name: "decisions.md", chars: 200 });
+    expect(tight.content.length).toBeLessThanOrEqual(200);
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
   it("recalls a hand-written bank file that has no front matter title", async () => {
     const dir = await makeDir();
     await fs.writeFile(
