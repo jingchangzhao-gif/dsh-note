@@ -166,6 +166,28 @@ describe("notes memory operations", () => {
     await fs.rm(dir, { recursive: true, force: true });
   });
 
+  it.skipIf(process.platform === "win32" || process.getuid?.() === 0)(
+    "skips unreadable files and subdirectories instead of failing the listing",
+    async () => {
+      const dir = await makeDir();
+      await appendNote(dir, "good.md", "visible body");
+      await appendNote(dir, "locked/hidden.md", "hidden body");
+      await fs.writeFile(join(dir, "secret.md"), "secret body");
+      await fs.chmod(join(dir, "locked"), 0o000);
+      await fs.chmod(join(dir, "secret.md"), 0o000);
+      try {
+        const notes = await listNotes(dir);
+        expect(notes.map((note) => note.name)).toEqual(["good.md"]);
+        const hits = await searchNotes(dir, "body");
+        expect(hits.map((hit) => hit.name)).toEqual(["good.md"]);
+      } finally {
+        await fs.chmod(join(dir, "locked"), 0o755);
+        await fs.chmod(join(dir, "secret.md"), 0o644);
+      }
+      await fs.rm(dir, { recursive: true, force: true });
+    },
+  );
+
   it("reports nested names zone-relative and leaves no temp files behind", async () => {
     const dir = await makeDir();
     const appended = await appendNote(dir, "log/today.md", "first");

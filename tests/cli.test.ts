@@ -141,4 +141,55 @@ describe("cli.mjs end to end", () => {
     expect(legacy.stdout).toContain("session.md");
     await fs.rm(dir, { recursive: true, force: true });
   });
+
+  it("forget, context, memory-update and memory-compact work end to end", async () => {
+    const dir = await makeDir();
+    const bank = await makeDir();
+    await runCli(["remember", dir, "--name", "session.md", "--content", "context marker pnpm"]);
+    const context = await runCli([
+      "context",
+      dir,
+      "--focus",
+      "pnpm",
+      "--notes",
+      "session.md",
+      "--memory",
+      bank,
+    ]);
+    expect(context.stdout).toContain("context marker pnpm");
+    expect(context.stdout).toContain("[context parts:");
+
+    await runCli(["memory-add", bank, "--content", "first bank entry"]);
+    await runCli(["memory-add", bank, "--content", "second bank entry"]);
+    const updated = await runCli(["memory-update", bank, "--summary", "digest here"]);
+    expect(updated.stdout).toContain("changed: true");
+    const recalled = await runCli(["memory-recall", bank]);
+    expect(recalled.stdout).toContain("summary: digest here"); // the digest reads back
+
+    const compacted = await runCli(["memory-compact", bank, "--name", "memory.md", "--keep", "1"]);
+    expect(compacted.stdout).toContain("archived 1");
+    const forgotten = await runCli(["forget", dir, "--name", "session.md"]);
+    expect(forgotten.stdout).toContain("removed: true");
+    await fs.rm(dir, { recursive: true, force: true });
+    await fs.rm(bank, { recursive: true, force: true });
+  });
+
+  it("prints raw JSON for a command when asked", async () => {
+    const dir = await makeDir();
+    await runCli(["remember", dir, "--name", "a.md", "--content", "hello"]);
+    const listed = await runCli(["list", dir, "--json"]);
+    const notes = JSON.parse(listed.stdout) as { name: string }[];
+    expect(Array.isArray(notes)).toBe(true);
+    expect(notes[0].name).toBe("a.md");
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
+  it("exits non-zero with a usage hint on bad input", async () => {
+    const dir = await makeDir();
+    await expect(runCli(["nope", "arg"])).rejects.toThrow(/unknown command/);
+    const failure = runCli(["recall", dir]);
+    await expect(failure).rejects.toMatchObject({ code: 1 });
+    await expect(failure).rejects.toThrow(/usage: recall/);
+    await fs.rm(dir, { recursive: true, force: true });
+  });
 });
