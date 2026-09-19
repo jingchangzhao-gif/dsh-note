@@ -195,9 +195,12 @@ async function readHead(path: string, max: number = HEAD_CHUNK): Promise<string>
   }
 }
 
-/** Recursively enumerate note files below a root, sorted, names "/"-separated. */
+/**
+ * Recursively enumerate note files below a root, sorted, names "/"-separated.
+ * Read-only: a missing or unreadable directory yields no files instead of
+ * creating the zone (only writers create folders).
+ */
 async function listFilesRecursive(root: string): Promise<{ name: string; path: string }[]> {
-  await ensureDir(root);
   const found: { name: string; path: string }[] = [];
   const stack = [root];
   while (stack.length > 0) {
@@ -448,7 +451,6 @@ export async function searchNotes(
   const snippetChars = Math.max(80, options.snippetChars ?? 240);
   const words = tokenize(query);
   if (words.length === 0) return [];
-  await ensureDir(zoneDir);
   const files = await listFilesRecursive(zoneDir);
   const hits: SearchHit[] = [];
   for (const file of files) {

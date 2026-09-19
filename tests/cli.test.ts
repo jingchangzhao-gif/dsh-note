@@ -261,7 +261,12 @@ describe("cli.mjs end to end", () => {
     const writing = await runCli(["list"], root);
     expect(writing.stdout).toContain("note.md");
     expect(writing.stdout).not.toContain("memory.md");
+    // Reading a zone must not bring it into existence.
+    const fresh = await makeDir();
+    await runCli(["list", "--zone", "memory"], fresh);
+    await expect(fs.stat(join(fresh, "memory"))).rejects.toThrow();
     await fs.rm(root, { recursive: true, force: true });
+    await fs.rm(fresh, { recursive: true, force: true });
   });
 
   it("exits non-zero with a usage hint on bad input", async () => {
