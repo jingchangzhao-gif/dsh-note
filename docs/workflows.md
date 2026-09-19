@@ -143,8 +143,8 @@ folder; on macOS replace `run.bat` with `./run.command`):
 | `note_recall` | `run.bat recall <notes> session.md [--tail 2000 \| --compact]` |
 | `note_write` | `run.bat write <notes> article.md --file new-draft.md [--title "…"]` |
 | `note_edit` | `run.bat edit <notes> session.md --old "old text" --new "new text" [--all]` |
-| `note_list` | `run.bat list <dir>` |
-| `note_search` | `run.bat search <dir> <query words...>` |
+| `note_list` | `run.bat list <dir> [--zone memory]` |
+| `note_search` | `run.bat search <dir> <query words...> [--zone memory]` |
 | `note_forget` | `run.bat forget <dir> file.md` |
 | `note_stats` | `run.bat stats <dir>` |
 | `note_context` | `run.bat context <notes> --focus "question" --notes session.md --memory <memory>` |

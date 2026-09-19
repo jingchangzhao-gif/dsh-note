@@ -49,8 +49,9 @@ Usage:
   node cli.mjs <command> [dir] [flags...]
 
 Commands (dir defaults to ./notes, or ./memory for memory-*):
-  list [dir]
+  list [dir] [--zone writing|memory]
       List note files with title/type/tags. --json for raw data.
+      --zone memory reads ./memory instead of ./notes and hides archives.
   remember <dir?> --name <file> [--content <text> | --file <path> | --content -]
       Append a block to a writing note (creating it when missing).
   recall <dir?> --name <file> [--tail <chars>] [--compact]
@@ -59,8 +60,8 @@ Commands (dir defaults to ./notes, or ./memory for memory-*):
       Replace a note's whole body; optional --title/--tags/--type.
   edit <dir?> --name <file> --old <text> [--new <text>] [--all]
       Literal in-place body edit (front matter is never matched).
-  search <dir?> --query <words> [--limit <n>]
-      Free keyword search with snippets (archives included).
+  search <dir?> --query <words> [--limit <n>] [--zone writing|memory]
+      Free keyword search with snippets (archives included in writing).
   forget <dir?> --name <file>
       Delete a note file.
   stats [dir]
@@ -134,6 +135,16 @@ function zoneOf(kind, dirArg) {
   return api.zoneRoot(kind, process.cwd(), dirArg);
 }
 
+// A folder is a zone. `--zone` picks which default folder the command works on
+// (./notes or ./memory) and, where it matters, which files count: the writing
+// listing shows archives, the memory one hides them — the same rule note_list
+// and note_search follow.
+function zoneFlag(value) {
+  if (value === undefined) return "writing";
+  if (value === "writing" || value === "memory") return value;
+  throw new Error('--zone must be "writing" or "memory"');
+}
+
 async function readContent(flags) {
   if (flags.file !== undefined) {
     try {
@@ -162,10 +173,9 @@ const handlers = {
   },
 
   async list({ positional, flags }) {
-    const dir = zoneOf("writing", positional[0]);
-    // A folder given to the CLI is a writing zone, and writing listings show
-    // archives — the same rule note_list uses (only memory hides them).
-    const notes = await api.listNotes(dir);
+    const zone = zoneFlag(flags.zone);
+    const dir = zoneOf(zone, positional[0]);
+    const notes = api.visibleOnly(await api.listNotes(dir), zone !== "memory");
     if (flags.json) return { json: notes };
     const lines = [`Notes in ${dir} (${notes.length}):`];
     for (const note of notes) {
@@ -232,10 +242,12 @@ const handlers = {
   },
 
   async search({ positional, flags }) {
-    const dir = zoneOf("writing", positional[0]);
+    const zone = zoneFlag(flags.zone);
+    const dir = zoneOf(zone, positional[0]);
     const query = requireFlag(flags, "query", 'keywords, e.g. "pnpm merge"');
     const limit = api.clampSearchLimit(numberFlag(flags, "limit", "--limit"));
-    const hits = await api.searchNotes(dir, query, { limit });
+    // Memory hits drop archives; writing hits keep them — note_search's rule.
+    const hits = api.visibleOnly(await api.searchNotes(dir, query, { limit }), zone !== "memory");
     if (flags.json) return { json: { query, dir, hits } };
     if (hits.length === 0) return { text: "No matches." };
     const lines = hits.map(
@@ -415,12 +427,12 @@ const NAME_POSITIONAL_COMMANDS = new Set([
 // One-line usage per command, appended to errors so the window always shows
 // a concrete hint (instead of a bare "missing --name" message).
 const USAGE_LINES = {
-  list: "list [dir]",
+  list: "list [dir] [--zone writing|memory]",
   remember: 'remember [dir] <file> --content "text" | --file <path>',
   recall: "recall [dir] <file> [--tail N] [--compact]",
   write: "write [dir] <file> (--content | --file <path>) [--title/--tags/--type]",
   edit: 'edit [dir] <file> --old "text" [--new "text"] [--all]',
-  search: "search [dir] <query words...> [--limit N]",
+  search: "search [dir] <query words...> [--limit N] [--zone writing|memory]",
   forget: "forget [dir] <file>",
   stats: "stats [dir]",
   context: "context [dir] [--focus text] [--notes a.md,b.md] [--memory dir]",
