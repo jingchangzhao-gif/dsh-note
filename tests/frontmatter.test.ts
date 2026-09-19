@@ -3,6 +3,7 @@ import {
   formatTagsList,
   parseFrontMatter,
   parseTagsList,
+  renderFrontMatter,
   withFrontMatter,
 } from "../src/frontmatter";
 
@@ -51,6 +52,18 @@ describe("front matter", () => {
     expect(parseTagsList(" a , b , a ")).toEqual(["a", "b"]);
     expect(parseTagsList(undefined)).toEqual([]);
     expect(formatTagsList(["x", "x", " y "])).toBe("x, y");
+  });
+
+  it("renders an empty block and trims the body when there is no meta", () => {
+    expect(renderFrontMatter({})).toBe("");
+    expect(withFrontMatter({}, "body  \n\n")).toBe("body");
+  });
+
+  it("returns a malformed quoted value verbatim instead of failing", () => {
+    // JSON.parse rejects the \q escape, so the raw value must survive.
+    const parsed = parseFrontMatter('---\ntitle: "a\\qb"\n---\nbody');
+    expect(parsed.meta.title).toBe('"a\\qb"');
+    expect(parsed.body.trim()).toBe("body");
   });
 
   it("round-trips a value containing a line break instead of truncating it", () => {

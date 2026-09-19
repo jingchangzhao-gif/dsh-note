@@ -11,12 +11,14 @@ export default defineConfig({
       exclude: ["src/index.ts", "src/api.ts"],
       reporter: ["text"],
       // Floor a little under today's numbers: catches a real coverage
-      // regression without flapping on small refactors.
+      // regression without flapping on small refactors. The remaining branch
+      // gaps are defensive arms that defineTool's argument validation makes
+      // unreachable (args ?? {}, and the non-string arm of unquote).
       thresholds: {
-        statements: 93,
-        branches: 78,
-        functions: 88,
-        lines: 93,
+        statements: 99,
+        branches: 82,
+        functions: 99,
+        lines: 99,
       },
     },
   },

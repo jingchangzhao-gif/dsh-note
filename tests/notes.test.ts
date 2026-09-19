@@ -129,6 +129,43 @@ describe("notes memory operations", () => {
     await fs.rm(dir, { recursive: true, force: true });
   });
 
+  it("appendNote keeps the front matter and refreshes updated", async () => {
+    const dir = await makeDir();
+    await writeNote(dir, "a.md", "first", { title: "A" });
+    const before = (await readNoteFull(dir, "a.md")).meta.updated;
+    await new Promise((done) => setTimeout(done, 5));
+    await appendNote(dir, "a.md", "second");
+    const full = await readNoteFull(dir, "a.md");
+    expect(full.meta.title).toBe("A");
+    expect(full.body).toContain("first");
+    expect(full.body).toContain("second");
+    expect(full.meta.updated).not.toBe(before);
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
+  it("lists a note whose front matter is larger than the head chunk", async () => {
+    const dir = await makeDir();
+    await writeNote(dir, "big.md", "body text", { title: "Big", summary: "s".repeat(20_000) });
+    const notes = await listNotes(dir);
+    expect(notes.map((note) => note.name)).toEqual(["big.md"]);
+    expect(notes[0].title).toBe("Big");
+    expect(notes[0].meta.summary).toHaveLength(20_000);
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
+  it("lists a CJK note whose head cut splits a multi-byte character", async () => {
+    const dir = await makeDir();
+    // 3-byte characters: the 16 KiB head chunk lands mid-character, which is
+    // exactly the case readHead's shorter-slice retry exists for.
+    const body = `# 標題\n${"漢".repeat(8000)}`;
+    await writeNote(dir, "cjk.md", body);
+    const notes = await listNotes(dir);
+    expect(notes.map((note) => note.name)).toEqual(["cjk.md"]);
+    expect(notes[0].title).toBe("標題");
+    expect(await readNote(dir, "cjk.md")).toContain(body);
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
   it("reports nested names zone-relative and leaves no temp files behind", async () => {
     const dir = await makeDir();
     const appended = await appendNote(dir, "log/today.md", "first");

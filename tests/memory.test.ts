@@ -170,6 +170,53 @@ describe("memory bank", () => {
     await fs.rm(dir, { recursive: true, force: true });
   });
 
+  it("recall of a topic file that does not exist yet returns nothing", async () => {
+    const dir = await makeDir();
+    const result = await recallMemory(dir, { name: "missing.md" });
+    expect(result).toMatchObject({ content: "", files: 0 });
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
+  it("updateMemoryMeta fails clearly when the file is missing", async () => {
+    const dir = await makeDir();
+    await expect(updateMemoryMeta(dir, "nope.md", { summary: "x" })).rejects.toThrow(/not found/);
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
+  it("compactMemory by date is a no-op when nothing is older than the cutoff", async () => {
+    const dir = await makeDir();
+    await seed(dir);
+    const result = await compactMemory(dir, { name: "decisions.md", olderThan: "2000-01-01" });
+    expect(result).toMatchObject({ archived: 0, archive: "" });
+    expect(result.kept).toBe(2);
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
+  it("recalls a hand-written bank file that has no front matter title", async () => {
+    const dir = await makeDir();
+    await fs.writeFile(
+      join(dir, "plain.md"),
+      "## 2024-01-01T00:00:00.000Z\n\nhand written entry\n",
+      "utf8",
+    );
+    const result = await recallMemory(dir, { name: "plain.md" });
+    expect(result.content).toContain("# plain.md"); // falls back to the file name
+    expect(result.content).toContain("hand written entry");
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
+  it("compact and remove default to memory.md and are no-ops without a match", async () => {
+    const dir = await makeDir();
+    await addMemoryEntry(dir, "only entry");
+    const compacted = await compactMemory(dir, { keep: 5 }); // name defaults
+    expect(compacted).toMatchObject({ name: "memory.md", archived: 0 });
+    const removed = await removeMemoryEntries(dir, "memory.md", "no such text");
+    expect(removed).toMatchObject({ name: "memory.md", removed: 0 });
+    expect((await readNoteFull(dir, "memory.md")).body).toContain("only entry");
+    await expect(removeMemoryEntries(dir, "memory.md", "  ")).rejects.toThrow(/match text/);
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
   it("parseMemory splits preamble and entries with timestamps", () => {
     const parsed = parseMemory(
       "preamble notes\n\n## 2024-01-01T00:00:00.000Z\none\n\n## 2024-01-02T00:00:00.000Z\ntwo",
