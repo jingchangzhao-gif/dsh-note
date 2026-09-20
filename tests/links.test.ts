@@ -63,6 +63,77 @@ describe("link extraction", () => {
     const oneDeep = new Set(["today.md", "log/today.md"]);
     expect(resolveLinkTarget("today", oneDeep)).toBe("today.md"); // shortest path wins
   });
+
+  it("resolves aliases, never lets one shadow a real name, and drops ambiguous ones", () => {
+    const names = new Set(["decisions.md", "legacy.md", "decoy.md"]);
+    const aliases = new Map([
+      ["adr", "decisions.md"],
+      ["old-name", "legacy.md"],
+      ["decisions", "decoy.md"], // would shadow the real file if aliases won
+    ]);
+    expect(resolveLinkTarget("adr", names, aliases)).toBe("decisions.md");
+    expect(resolveLinkTarget("old-name", names, aliases)).toBe("legacy.md");
+    expect(resolveLinkTarget("decisions", names, aliases)).toBe("decisions.md");
+    expect(resolveLinkTarget("nested/adr", names, aliases)).toBeUndefined(); // a path is not an alias
+    expect(resolveLinkTarget("adr", names)).toBeUndefined(); // no alias map, no match
+  });
+});
+
+describe("link graph aliases and islands", () => {
+  it("resolves front matter aliases, both keys, and focuses by one", async () => {
+    const dir = await makeDir();
+    await writeNote(dir, "decisions.md", "body", { aliases: "adr, choices" });
+    await writeNote(dir, "legacy.md", "body", { alias: "old-name" });
+    await writeNote(dir, "decoy.md", "body", { aliases: "decisions" });
+    await writeNote(dir, "hub.md", "See [[adr]], [[choices]], [[old-name]] and [[decisions]].");
+    const hub = await linkReport(dir, { name: "hub.md" });
+    expect(hub.note?.out).toEqual(["decisions.md", "legacy.md"]); // the real file wins over decoy.md
+    expect(hub.note?.broken).toEqual([]);
+    expect((await linkReport(dir, { name: "adr" })).note?.name).toBe("decisions.md");
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
+  it("leaves an alias shared by two notes unresolved", async () => {
+    const dir = await makeDir();
+    await writeNote(dir, "x.md", "body", { aliases: "shared" });
+    await writeNote(dir, "y.md", "body", { aliases: "shared" });
+    await writeNote(dir, "z.md", "See [[shared]].");
+    const z = await linkReport(dir, { name: "z.md" });
+    expect(z.note?.out).toEqual([]);
+    expect(z.note?.broken).toEqual(["shared"]);
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
+  it("reports linked clusters cut off from the main graph", async () => {
+    const dir = await makeDir();
+    await writeNote(dir, "hub.md", "See [a](a.md).");
+    await writeNote(dir, "a.md", "Back to [[hub]].");
+    await writeNote(dir, "p.md", "See [q](q.md).");
+    await writeNote(dir, "q.md", "Back to [[p]].");
+    await writeNote(dir, "lone.md", "nothing");
+    const report = await linkReport(dir);
+    expect(report.islands).toEqual([["p.md", "q.md"]]); // hub+a is the main cluster
+    expect(report.orphans).toEqual(["lone.md"]); // a lone note is an orphan, not an island
+    expect(renderLinkReport(report, "writing")).toContain("islands: p.md+q.md");
+
+    const single = await makeDir();
+    await writeNote(single, "hub.md", "See [a](a.md).");
+    await writeNote(single, "a.md", "Back to [[hub]].");
+    expect((await linkReport(single)).islands).toEqual([]); // one cluster is not an island
+    await fs.rm(dir, { recursive: true, force: true });
+    await fs.rm(single, { recursive: true, force: true });
+  });
+
+  it("counts island clusters past the shown limit", async () => {
+    const dir = await makeDir();
+    for (const [left, right] of ["ab", "cd", "ef", "gh", "ij"]) {
+      await writeNote(dir, `${left}.md`, `See [${right}](${right}.md).`);
+      await writeNote(dir, `${right}.md`, `Back to [[${left}]].`);
+    }
+    const text = renderLinkReport(await linkReport(dir), "writing");
+    expect(text).toMatch(/islands: .*\(\+\d+\)/);
+    await fs.rm(dir, { recursive: true, force: true });
+  });
 });
 
 describe("link graph", () => {
@@ -159,6 +230,7 @@ describe("mermaid link graph", () => {
       links: 1,
       broken: [],
       orphans: [],
+      islands: [],
       edges: [{ from: 'a "quoted" and very long name past forty characters.md', to: "b.md" }],
     };
     const mermaid = renderMermaidGraph(graph, 'my "zone"');
@@ -174,6 +246,7 @@ describe("mermaid link graph", () => {
       links: 0,
       broken: [],
       orphans: [],
+      islands: [],
       edges: [],
     });
     expect(empty).toContain('none["no notes"]');

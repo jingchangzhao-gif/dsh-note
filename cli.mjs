@@ -81,7 +81,7 @@ Commands (dir defaults to ./notes, or ./memory for memory-*):
       as a fenced block, or written to --file.
   links [dir] [--name <note>] [--zone writing|memory]
       Follow links between notes: with --name, what it points at and what
-      points back; without, link/orphan/broken counts for the zone.
+      points back; without, link/orphan/island/broken counts for the zone.
   linkmap [dir] [--zone writing|memory] [--file <out.md>]
       The link graph as a Mermaid flowchart (notes are nodes, links are edges),
       printed as a fenced block, or written to --file.

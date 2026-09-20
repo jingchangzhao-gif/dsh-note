@@ -151,6 +151,15 @@ describe("zone map", () => {
     await fs.rm(quiet, { recursive: true, force: true });
   });
 
+  it("counts alias-resolved links in the map", async () => {
+    const dir = await makeDir();
+    await writeNote(dir, "decisions.md", "body", { aliases: "adr" });
+    await writeNote(dir, "hub.md", "See [[adr]].");
+    const map = await zoneMap(dir);
+    expect(map).toMatchObject({ links: 1, broken: [] });
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
   it("lists five orphan names and counts the rest", async () => {
     const dir = await makeDir();
     await writeNote(dir, "hub.md", "See [a](a.md).");
