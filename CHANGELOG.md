@@ -6,14 +6,20 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-20
+
+The mind-map and link layer: an outline the agent can read cheaply, two Mermaid
+diagrams a human can look at, a link graph with orphans and islands, and a
+rename that keeps the graph intact.
+
 ### Added
 
 - `note_map` tool and `map` CLI command: a free outline of a zone — one line per
   file plus each file's newest entry headings, newest first, trimmed to a
   character budget. Headings usually carry the gist, so the outline is often
   enough to choose which file to recall without paying for entry bodies. The
-  outline also carries the zone's link structure (`links`, `broken`, `orphans`),
-  so one call answers "what is here" and "what relates to what".
+  outline also carries the zone's link structure (`links`, `broken`, `orphans`,
+  `islands`), so one call answers "what is here" and "what relates to what".
 - `mindmap` CLI command: the same outline as a `mermaid mindmap` block for
   a human to look at (renders on GitHub, Obsidian, VS Code or the dsh GUI).
   Labels are sanitized and capped, so a note title cannot break the diagram.
@@ -34,8 +40,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `note_links` and `links` report **islands**: linked clusters cut off from the
   biggest one, which orphans alone cannot show. A lone note stays an orphan.
 - `linkmap` CLI command: the link graph as a Mermaid `flowchart` — notes are
-  nodes, links are edges — for a human to look at. Hubs are drawn first and the
-  diagram stops at 40 nodes, because a 200-node hairball is not a map.
+  nodes, links are edges — for a human to look at. Hubs are drawn first, and the
+  number of nodes left out is kept in a Mermaid comment, because a 200-node
+  hairball is not a map.
 
 ### Changed
 
