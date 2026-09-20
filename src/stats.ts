@@ -99,6 +99,14 @@ function mapFileLine(file: MapFile): string {
   return `- ${file.name}${title} (${count}${file.bytes} bytes)`;
 }
 
+/**
+ * A diagram node label: names only. Sizes and counts are text-map detail — a
+ * mind map whose labels wrap reads worse than one whose labels do not.
+ */
+function mapFileLabel(file: MapFile): string {
+  return `${file.name}${file.title ? ` — ${file.title}` : ""}`;
+}
+
 /** Entry heading for a map: no "## ", date only, elided when very long. */
 function mapHeading(entry: MemoryEntry): string {
   const newline = entry.text.indexOf("\n");
@@ -226,7 +234,7 @@ export function renderMermaidMap(map: ZoneMap, label = "zone"): string {
   let nodes = 0;
   for (const file of map.files) {
     nodes += 1;
-    lines.push(`    n${nodes}["${mermaidText(mapFileLine(file).replace(/^- /, ""))}"]`);
+    lines.push(`    n${nodes}["${mermaidText(mapFileLabel(file))}"]`);
     for (const heading of file.headings) {
       nodes += 1;
       lines.push(`      n${nodes}["${mermaidText(heading)}"]`);

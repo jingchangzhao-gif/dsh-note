@@ -176,7 +176,8 @@ describe("zone map", () => {
     const mermaid = renderMermaidMap(await zoneMap(dir), "memory");
     expect(mermaid.startsWith('```mermaid\nmindmap\n  root["memory"]')).toBe(true);
     expect(mermaid.endsWith("```")).toBe(true);
-    expect(mermaid).toContain("n1[\"d.md — use 'pnpm' (1 entry,"); // quotes neutralized
+    expect(mermaid).toContain("n1[\"d.md — use 'pnpm'\"]"); // quotes neutralized, names only
+    expect(mermaid).not.toContain("bytes)"); // sizes stay in the text map
     expect(mermaid).toContain("2024-02-05 — use 'pnpm'"); // date shortened, same label
     expect(mermaid).not.toContain('"pnpm"');
     const longLabel = mermaid.split("\n").find((line) => line.includes("long.md"));

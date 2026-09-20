@@ -219,11 +219,17 @@ back at it (`back`), and its dangling targets (`broken`). Without one: the
 zone's `links` count, its `orphans` (nothing links to or from them) and every
 `broken` target.
 
-Both markdown links (`[label](decisions.md)`) and wikilinks (`[[decisions]]`,
-optionally `[[target|label]]`) count. Targets are zone-relative names, so
-`[[decisions]]` finds `decisions.md` and `[[log/today]]` finds `log/today.md`.
-URLs, in-page anchors, absolute paths and links inside fenced code blocks are
-ignored, since they are not links between notes.
+Both markdown links (`[label](decisions.md)`, and `<…>` for names with spaces)
+and wikilinks (`[[decisions]]`, optionally `[[target|label]]`) count. A target
+resolves the way the note-taking ecosystem resolves links: exact zone-relative
+path, then `+".md"`, then a unique file **basename**, case-insensitively and
+shortest path first — so `[[decisions]]` finds `decisions.md` and `[[today]]`
+finds `log/today.md`. An ambiguous name (two files with that basename at the
+same depth) stays unresolved rather than guessing.
+
+Not links between notes, so ignored: URLs, in-page anchors, absolute paths,
+image and media targets, `![alt](…)` embeds, links inside fenced code blocks,
+and a note linking to itself (which would only hide that nothing reaches it).
 
 ### `note_context`
 
@@ -330,6 +336,7 @@ macOS is identical with `./run.command` instead of `run.bat`.
 | `map [dir] [--chars N] [--zone writing\|memory]`                       | Outline a zone: file lines + newest headings    |
 | `mindmap [dir] [--chars N] [--zone ...] [--file out.md]`               | The outline as a Mermaid mind map (renders)     |
 | `links [dir] [--name <note>] [--zone writing\|memory]`                 | Follow links: out, back, broken, orphans        |
+| `linkmap [dir] [--zone ...] [--file out.md]`                           | The link graph as a Mermaid flowchart           |
 | `export <dir?> --file f.json`                                          | Snapshot the whole folder into one JSON file    |
 | `import <dir?> --file f.json [--force]`                                | Write a snapshot back (skips existing files)    |
 | `context <dir?> [--focus q] [--notes a,b] [--memory <dir>]`            | Assemble a small bounded context packet         |

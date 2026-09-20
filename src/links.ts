@@ -4,22 +4,36 @@
 // Two syntaxes are recognised, both already meaningful in a markdown file:
 //   [label](decisions.md)   a normal markdown link
 //   [[decisions]]           the note-taking wikilink (optionally [[t|label]])
-// Targets are zone-relative names, the same convention every other tool uses,
-// so `log/today.md` and `[[today]]` (extension added) both work. External URLs,
-// in-page anchors, absolute paths and links inside fenced code blocks are not
-// links between notes and are ignored.
+// Targets are zone-relative names, the same convention every other tool uses.
+// A bare name resolves the way the note-taking ecosystem does: exact path, then
+// +".md", then a unique basename (shortest path wins), case-insensitively —
+// and an ambiguous name stays unresolved rather than guessing.
+//
+// Not links between notes, so ignored: external URLs, in-page anchors,
+// absolute paths, image and media targets, `![alt](…)` embeds of files, links
+// inside fenced code blocks, and a note linking to itself (which would only
+// hide that nothing else reaches it).
 
 import { promises as fs } from "node:fs";
 import { parseFrontMatter } from "./frontmatter";
 import { isArchive, listNotes } from "./notes";
 
 const WIKILINK_RE = /\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/g;
-const MARKDOWN_LINK_RE = /\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
+// `(<target with spaces>)` is the markdown form for targets that contain them.
+const MARKDOWN_LINK_RE = /\[[^\]]*\]\((<[^>]*>|[^)\s]+)(?:\s+"[^"]*")?\)/g;
+/** Assets, not notes: an image or media link is not an edge in the graph. */
+const ASSET_RE = /\.(?:png|jpe?g|gif|svg|webp|avif|bmp|ico|pdf|mp3|mp4|mov|webm|wav|ogg)$/i;
 
-/** True when a markdown link target could name a note rather than a URL. */
+/** Strip the angle brackets a markdown target may be wrapped in. */
+function cleanTarget(raw: string): string {
+  return raw.replace(/^</, "").replace(/>$/, "").trim();
+}
+
+/** True when a cleaned target could name a note rather than a URL or an asset. */
 function isNoteTarget(target: string): boolean {
   if (target === "" || target.startsWith("#") || target.startsWith("/")) return false;
-  return !/^[a-z][a-z0-9+.-]*:/i.test(target); // http:, https:, mailto:, data: …
+  if (/^[a-z][a-z0-9+.-]*:/i.test(target)) return false; // http:, mailto:, data: …
+  return !ASSET_RE.test(target);
 }
 
 /** Note names a body points at, in file order, duplicates kept for the caller. */
@@ -34,24 +48,46 @@ export function extractLinks(body: string): string[] {
     }
     if (fenced) continue;
     for (const match of line.matchAll(WIKILINK_RE)) {
-      const target = match[1].split("#")[0].trim();
-      if (target) targets.push(target);
+      const target = cleanTarget(match[1].split("#")[0]);
+      if (target && isNoteTarget(target)) targets.push(target);
     }
     for (const match of line.matchAll(MARKDOWN_LINK_RE)) {
-      const target = match[1].trim();
-      if (isNoteTarget(target)) targets.push(target.split("#")[0]);
+      // `![alt](target)` is an image or file embed, not a link between notes.
+      if (match.index !== undefined && line[match.index - 1] === "!") continue;
+      const target = cleanTarget(match[1].split("#")[0]);
+      if (isNoteTarget(target)) targets.push(target);
     }
   }
   return targets;
 }
 
-/** Resolve a target to a file in the zone, adding ".md" the way notePath does. */
+/** File name without its directory or note extension. */
+function basenameStem(name: string): string {
+  const base = name.slice(name.lastIndexOf("/") + 1);
+  return base.replace(/\.(?:md|markdown|txt)$/i, "");
+}
+
+/**
+ * Resolve a target to a file in the zone. Exact path first, then the bare name
+ * against file basenames (case-insensitively, shortest path preferred, the
+ * Obsidian/awiki rule). Two equally good candidates mean the name is ambiguous,
+ * and an ambiguous name resolves to nothing instead of guessing.
+ */
 export function resolveLinkTarget(target: string, names: ReadonlySet<string>): string | undefined {
-  const clean = target.replace(/\\/g, "/").replace(/^\.\//, "").trim();
+  const clean = target.replace(/\\/g, "/").replace(/^\.\//, "").replace(/^<|>$/g, "").trim();
   if (clean === "") return undefined;
   if (names.has(clean)) return clean;
-  const withExt = `${clean}.md`;
-  return names.has(withExt) ? withExt : undefined;
+  if (names.has(`${clean}.md`)) return `${clean}.md`;
+
+  const lower = clean.toLowerCase();
+  const wanted = new Set([lower, `${lower}.md`]);
+  const candidates = [...names].filter(
+    (name) => wanted.has(name.toLowerCase()) || basenameStem(name).toLowerCase() === lower,
+  );
+  if (candidates.length === 0) return undefined;
+  const shallowest = Math.min(...candidates.map((name) => name.split("/").length));
+  const best = candidates.filter((name) => name.split("/").length === shallowest).sort();
+  return best.length === 1 ? best[0] : undefined;
 }
 
 export interface NoteLinks {
@@ -77,6 +113,17 @@ export interface LinkReport {
   note?: NoteLinks;
 }
 
+/** One resolved link: the edge a diagram draws. */
+export interface LinkEdge {
+  from: string;
+  to: string;
+}
+
+/** A report plus the edges themselves, for callers that draw the graph. */
+export interface LinkGraph extends LinkReport {
+  edges: LinkEdge[];
+}
+
 export interface LinkOptions {
   /** report one note instead of the whole zone */
   name?: string;
@@ -99,20 +146,22 @@ export function buildLinkGraph(
   dir: string,
   inputs: readonly LinkInput[],
   focus?: string,
-): LinkReport {
+): LinkGraph {
   const names = new Set(inputs.map((input) => input.name));
   const out = new Map<string, string[]>();
   const back = new Map<string, string[]>();
   const brokenBy = new Map<string, string[]>();
   const broken = new Set<string>();
+  const edges: LinkEdge[] = [];
 
   for (const input of inputs) {
     const resolved = new Set<string>();
     const missing = new Set<string>();
     for (const target of extractLinks(input.body)) {
       const hit = resolveLinkTarget(target, names);
-      if (hit) resolved.add(hit);
-      else {
+      // A self-link is not connectivity: it must not hide an unreachable note.
+      if (hit && hit !== input.name) resolved.add(hit);
+      else if (!hit) {
         missing.add(target);
         broken.add(target);
       }
@@ -120,11 +169,14 @@ export function buildLinkGraph(
     const outgoing = [...resolved].sort();
     out.set(input.name, outgoing);
     brokenBy.set(input.name, [...missing].sort());
-    for (const target of outgoing) back.set(target, [...(back.get(target) ?? []), input.name]);
+    for (const target of outgoing) {
+      back.set(target, [...(back.get(target) ?? []), input.name]);
+      edges.push({ from: input.name, to: target });
+    }
   }
 
   const links = [...out.values()].reduce((sum, list) => sum + list.length, 0);
-  const report: LinkReport = {
+  const report: LinkGraph = {
     dir,
     files: inputs.length,
     links,
@@ -139,6 +191,7 @@ export function buildLinkGraph(
             .filter(
               (name) => (out.get(name)?.length ?? 0) === 0 && (back.get(name)?.length ?? 0) === 0,
             ),
+    edges,
   };
 
   const want = focus?.trim();
@@ -156,7 +209,7 @@ export function buildLinkGraph(
 }
 
 /** Build the link graph of a zone, optionally focused on one note. */
-export async function linkReport(zoneDir: string, options: LinkOptions = {}): Promise<LinkReport> {
+export async function linkReport(zoneDir: string, options: LinkOptions = {}): Promise<LinkGraph> {
   const notes = (await listNotes(zoneDir)).filter(
     (note) => options.includeArchives || !isArchive(note.name, note.meta),
   );
@@ -191,5 +244,50 @@ export function renderLinkReport(report: LinkReport, label = "zone"): string {
   const lines = [`${label}: ${report.files} file(s), ${report.links} link(s)`];
   if (report.orphans.length > 0) lines.push(`orphans: ${report.orphans.join(", ")}`);
   if (report.broken.length > 0) lines.push(`broken: ${report.broken.join(", ")}`);
+  return lines.join("\n");
+}
+
+/** Nodes a rendered link graph draws before it starts counting. */
+const GRAPH_NODES_MAX = 40;
+/** Longest node label a rendered graph keeps. */
+const GRAPH_LABEL_CHARS = 40;
+
+/** A diagram label lives inside ["…"]: one line, no quotes, kept short. */
+function graphText(text: string): string {
+  const flat = text.replace(/\s+/g, " ").replace(/"/g, "'").trim();
+  return flat.length > GRAPH_LABEL_CHARS ? `${flat.slice(0, GRAPH_LABEL_CHARS)}…` : flat;
+}
+
+/**
+ * The link graph as a Mermaid flowchart, for a human: notes are nodes, links
+ * are edges. Hubs are drawn first, and past {@link GRAPH_NODES_MAX} only the
+ * best-connected survive — a 200-node diagram is a hairball, not a map, and the
+ * omitted count is left in a Mermaid comment.
+ */
+export function renderMermaidGraph(graph: LinkGraph, label = "zone"): string {
+  const degrees = new Map<string, number>();
+  for (const edge of graph.edges) {
+    degrees.set(edge.from, (degrees.get(edge.from) ?? 0) + 1);
+    degrees.set(edge.to, (degrees.get(edge.to) ?? 0) + 1);
+  }
+  for (const orphan of graph.orphans) degrees.set(orphan, degrees.get(orphan) ?? 0);
+  const ranked = [...degrees.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .map(([name]) => name);
+  const drawn = ranked.slice(0, GRAPH_NODES_MAX);
+  const ids = new Map(drawn.map((name, index) => [name, `n${index + 1}`]));
+
+  // No root hub: an invented centre would add edges that are not links.
+  const lines = ["```mermaid", "flowchart LR", `  %% ${graphText(label)} link graph`];
+  for (const name of drawn) lines.push(`  ${ids.get(name)}["${graphText(name)}"]`);
+  for (const edge of graph.edges) {
+    const from = ids.get(edge.from);
+    const to = ids.get(edge.to);
+    if (from && to) lines.push(`  ${from} --> ${to}`);
+  }
+  const omitted = ranked.length - drawn.length;
+  if (omitted > 0) lines.push(`  %% ${omitted} more note(s) not shown`);
+  if (drawn.length === 0) lines.push(`  none["no notes"]`);
+  lines.push("```");
   return lines.join("\n");
 }
