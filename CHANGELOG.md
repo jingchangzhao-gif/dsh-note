@@ -11,7 +11,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `note_map` tool and `map` CLI command: a free outline of a zone — one line per
   file plus each file's newest entry headings, newest first, trimmed to a
   character budget. Headings usually carry the gist, so the outline is often
-  enough to choose which file to recall without paying for entry bodies.
+  enough to choose which file to recall without paying for entry bodies. The
+  outline also carries the zone's link structure (`links`, `broken`, `orphans`),
+  so one call answers "what is here" and "what relates to what".
 - `mindmap` CLI command: the same outline as a `mermaid mindmap` block for
   a human to look at (renders on GitHub, Obsidian, VS Code or the dsh GUI).
   Labels are sanitized and capped, so a note title cannot break the diagram.

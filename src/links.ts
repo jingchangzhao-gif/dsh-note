@@ -84,23 +84,32 @@ export interface LinkOptions {
   includeArchives?: boolean;
 }
 
-/** Build the link graph of a zone, optionally focused on one note. */
-export async function linkReport(zoneDir: string, options: LinkOptions = {}): Promise<LinkReport> {
-  const notes = (await listNotes(zoneDir)).filter(
-    (note) => options.includeArchives || !isArchive(note.name, note.meta),
-  );
-  const names = new Set(notes.map((note) => note.name));
+/** A note that is already read: the pure graph builder needs no filesystem. */
+export interface LinkInput {
+  name: string;
+  /** body text, front matter already stripped */
+  body: string;
+}
+
+/**
+ * The pure half of the graph: parse and resolve bodies the caller has read.
+ * Shared with `zoneMap`, which reads every file anyway and must not read twice.
+ */
+export function buildLinkGraph(
+  dir: string,
+  inputs: readonly LinkInput[],
+  focus?: string,
+): LinkReport {
+  const names = new Set(inputs.map((input) => input.name));
   const out = new Map<string, string[]>();
   const back = new Map<string, string[]>();
   const brokenBy = new Map<string, string[]>();
   const broken = new Set<string>();
 
-  for (const note of notes) {
-    // listNotes skipped anything unreadable, so a failure here is real.
-    const body = parseFrontMatter(await fs.readFile(note.path, "utf8")).body;
+  for (const input of inputs) {
     const resolved = new Set<string>();
     const missing = new Set<string>();
-    for (const target of extractLinks(body)) {
+    for (const target of extractLinks(input.body)) {
       const hit = resolveLinkTarget(target, names);
       if (hit) resolved.add(hit);
       else {
@@ -109,15 +118,15 @@ export async function linkReport(zoneDir: string, options: LinkOptions = {}): Pr
       }
     }
     const outgoing = [...resolved].sort();
-    out.set(note.name, outgoing);
-    brokenBy.set(note.name, [...missing].sort());
-    for (const target of outgoing) back.set(target, [...(back.get(target) ?? []), note.name]);
+    out.set(input.name, outgoing);
+    brokenBy.set(input.name, [...missing].sort());
+    for (const target of outgoing) back.set(target, [...(back.get(target) ?? []), input.name]);
   }
 
   const links = [...out.values()].reduce((sum, list) => sum + list.length, 0);
   const report: LinkReport = {
-    dir: zoneDir,
-    files: notes.length,
+    dir,
+    files: inputs.length,
     links,
     broken: [...broken].sort(),
     // Listing every file as an orphan of a bank that simply has no links is
@@ -125,14 +134,14 @@ export async function linkReport(zoneDir: string, options: LinkOptions = {}): Pr
     orphans:
       links === 0
         ? []
-        : notes
-            .map((note) => note.name)
+        : inputs
+            .map((input) => input.name)
             .filter(
               (name) => (out.get(name)?.length ?? 0) === 0 && (back.get(name)?.length ?? 0) === 0,
             ),
   };
 
-  const want = options.name?.trim();
+  const want = focus?.trim();
   if (want) {
     const name = resolveLinkTarget(want, names);
     if (!name) throw new Error(`Note not found in this zone: ${want}`);
@@ -144,6 +153,22 @@ export async function linkReport(zoneDir: string, options: LinkOptions = {}): Pr
     };
   }
   return report;
+}
+
+/** Build the link graph of a zone, optionally focused on one note. */
+export async function linkReport(zoneDir: string, options: LinkOptions = {}): Promise<LinkReport> {
+  const notes = (await listNotes(zoneDir)).filter(
+    (note) => options.includeArchives || !isArchive(note.name, note.meta),
+  );
+  const inputs: LinkInput[] = [];
+  for (const note of notes) {
+    // listNotes skipped anything unreadable, so a failure here is real.
+    inputs.push({
+      name: note.name,
+      body: parseFrontMatter(await fs.readFile(note.path, "utf8")).body,
+    });
+  }
+  return buildLinkGraph(zoneDir, inputs, options.name);
 }
 
 /** Render a report the same way for the tool and the CLI. */

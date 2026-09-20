@@ -473,6 +473,9 @@ export const noteMapTool = defineTool({
         total: { type: "number" },
         omitted: { type: "number" },
         truncated: { type: "boolean" },
+        links: { type: "number" },
+        broken: { type: "array", items: { type: "string" } },
+        orphans: { type: "array", items: { type: "string" } },
         files: {
           type: "array",
           items: {

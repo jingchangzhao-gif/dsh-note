@@ -5,9 +5,11 @@
 
 import { promises as fs } from "node:fs";
 import { parseFrontMatter } from "./frontmatter";
+import { buildLinkGraph } from "./links";
 import { clampInt, parseMemory } from "./memory";
 import type { MemoryEntry } from "./memory";
 import { isArchive, listNotes } from "./notes";
+import type { NoteFile } from "./notes";
 
 export interface ZoneStats {
   /** resolved folder the numbers describe */
@@ -74,6 +76,12 @@ export interface ZoneMap {
   omitted: number;
   /** true when headings or whole files were dropped to fit */
   truncated: boolean;
+  /** resolved link edges between the zone's notes */
+  links: number;
+  /** link targets matching no note */
+  broken: string[];
+  /** notes with no links in or out (empty when the zone has none at all) */
+  orphans: string[];
 }
 
 export interface MapOptions {
@@ -112,17 +120,31 @@ export async function zoneMap(zoneDir: string, options: MapOptions = {}): Promis
   const notes = (await listNotes(zoneDir)).filter(
     (note) => options.includeArchives || !isArchive(note.name, note.meta),
   );
+  // Read each file once and read all of them: the link graph needs every body,
+  // so an early exit on the budget would silently under-count relationships.
+  const prepared: { note: NoteFile; body: string; bytes: number }[] = [];
+  for (const note of notes) {
+    // listNotes already skipped anything unreadable; a vanished file should be
+    // loud here rather than silently shrinking the map.
+    const raw = await fs.readFile(note.path, "utf8");
+    prepared.push({
+      note,
+      body: parseFrontMatter(raw).body,
+      bytes: Buffer.byteLength(raw, "utf8"),
+    });
+  }
+  const graph = buildLinkGraph(
+    zoneDir,
+    prepared.map(({ note, body }) => ({ name: note.name, body })),
+  );
+
   const files: MapFile[] = [];
   let used = 0;
   let omitted = 0;
   let truncated = false;
-  for (let index = 0; index < notes.length; index += 1) {
-    const note = notes[index];
-    // listNotes already skipped anything unreadable; a vanished file should be
-    // loud here rather than silently shrinking the map.
-    const raw = await fs.readFile(note.path, "utf8");
-    const bytes = Buffer.byteLength(raw, "utf8");
-    const { entries } = parseMemory(parseFrontMatter(raw).body);
+  for (let index = 0; index < prepared.length; index += 1) {
+    const { note, body, bytes } = prepared[index];
+    const { entries } = parseMemory(body);
     const file: MapFile = {
       name: note.name,
       title: note.title,
@@ -132,7 +154,7 @@ export async function zoneMap(zoneDir: string, options: MapOptions = {}): Promis
     };
     const line = mapFileLine(file);
     if (used + line.length + 1 > budget) {
-      omitted = notes.length - index;
+      omitted = prepared.length - index;
       truncated = true;
       break;
     }
@@ -148,8 +170,20 @@ export async function zoneMap(zoneDir: string, options: MapOptions = {}): Promis
     }
     files.push(file);
   }
-  return { dir: zoneDir, files, total: notes.length, omitted, truncated };
+  return {
+    dir: zoneDir,
+    files,
+    total: notes.length,
+    omitted,
+    truncated,
+    links: graph.links,
+    broken: graph.broken,
+    orphans: graph.orphans,
+  };
 }
+
+/** Orphan names a rendered map lists before it starts counting. */
+const ORPHAN_NAMES_SHOWN = 5;
 
 /** Render a map the same way for the tool and the CLI. */
 export function renderZoneMap(map: ZoneMap, label = "zone"): string {
@@ -159,6 +193,17 @@ export function renderZoneMap(map: ZoneMap, label = "zone"): string {
     for (const heading of file.headings) lines.push(`  ${heading}`);
   }
   if (map.omitted > 0) lines.push(`… ${map.omitted} more file(s) not shown`);
+  // Relationships ride along so one cheap call gives shape *and* structure;
+  // a zone with no links says nothing, the way note_links stays quiet.
+  if (map.links > 0) {
+    const broken = map.broken.length > 0 ? ` (${map.broken.length} broken)` : "";
+    lines.push(`links: ${map.links}${broken}`);
+    if (map.orphans.length > 0) {
+      const shown = map.orphans.slice(0, ORPHAN_NAMES_SHOWN).join(", ");
+      const rest = map.orphans.length - ORPHAN_NAMES_SHOWN;
+      lines.push(`orphans: ${rest > 0 ? `${shown} (+${rest})` : shown}`);
+    }
+  }
   return lines.join("\n");
 }
 
