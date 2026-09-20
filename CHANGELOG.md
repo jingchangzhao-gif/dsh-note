@@ -15,6 +15,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `mindmap` CLI command: the same outline as a `mermaid mindmap` block for
   a human to look at (renders on GitHub, Obsidian, VS Code or the dsh GUI).
   Labels are sanitized and capped, so a note title cannot break the diagram.
+- `note_links` tool and `links` CLI command: the link graph between notes. With
+  a name, what it points at, what points back, and its dangling targets;
+  without one, the zone's link count, orphans and every broken target. Markdown
+  links and `[[wikilinks]]` both count, while URLs, anchors, absolute paths and
+  fenced code blocks are ignored.
 
 ## [0.3.0] - 2026-09-19
 

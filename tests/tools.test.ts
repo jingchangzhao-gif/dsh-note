@@ -22,6 +22,7 @@ import {
   noteEditTool,
   noteForgetTool,
   noteListTool,
+  noteLinksTool,
   noteMapTool,
   noteRecallTool,
   noteRememberTool,
@@ -268,6 +269,29 @@ describe("note tools", () => {
     expect(text).toContain("memory map: 1 file(s)");
     expect(text).toContain("use pnpm");
     await expect(run(noteMapTool, root, { zone: "bogus" })).rejects.toThrow(/zone must be/);
+    await fs.rm(root, { recursive: true, force: true });
+  });
+
+  it("note_links follows links between notes", async () => {
+    const root = await makeRoot();
+    await writeNote(join(root, "notes"), "hub.md", "See [a](a.md).");
+    await writeNote(join(root, "notes"), "a.md", "Back to [[hub]].");
+    const zone = await run<{ files: number; links: number; orphans: string[] }>(
+      noteLinksTool,
+      root,
+      {},
+    );
+    expect(zone).toMatchObject({ files: 2, links: 2, orphans: [] });
+    expect("note" in zone).toBe(false); // absent, not undefined
+    expect(renderText(noteLinksTool, {}, zone)).toContain("2 link(s)");
+    const note = await run<{ note?: { name: string; out: string[]; back: string[] } }>(
+      noteLinksTool,
+      root,
+      { name: "hub" },
+    );
+    expect(note.note).toMatchObject({ name: "hub.md", out: ["a.md"], back: ["a.md"] });
+    await expect(run(noteLinksTool, root, { name: "ghost.md" })).rejects.toThrow(/Note not found/);
+    await expect(run(noteLinksTool, root, { zone: "bogus" })).rejects.toThrow(/zone must be/);
     await fs.rm(root, { recursive: true, force: true });
   });
 

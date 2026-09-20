@@ -35,6 +35,7 @@ const COMMANDS = new Set([
   "stats",
   "map",
   "mindmap",
+  "links",
   "export",
   "import",
   "context",
@@ -77,6 +78,9 @@ Commands (dir defaults to ./notes, or ./memory for memory-*):
   mindmap [dir] [--chars <n>] [--zone writing|memory] [--file <out.md>]
       The same outline as a Mermaid mind map, for a human to look at; printed
       as a fenced block, or written to --file.
+  links [dir] [--name <note>] [--zone writing|memory]
+      Follow links between notes: with --name, what it points at and what
+      points back; without, link/orphan/broken counts for the zone.
   export <dir?> --file <bundle.json>
       Snapshot the whole folder (archives included) into one JSON file.
   import <dir?> --file <bundle.json> [--force]
@@ -332,6 +336,17 @@ const handlers = {
     return { text: `Wrote ${flags.file}` };
   },
 
+  async links({ positional, flags }) {
+    const zone = zoneFlag(flags.zone);
+    const dir = zoneOf(zone, positional[0]);
+    const report = await api.linkReport(dir, {
+      name: flags.name,
+      includeArchives: zone !== "memory",
+    });
+    if (flags.json) return { json: { zone, ...report } };
+    return { text: api.renderLinkReport(report, zone) };
+  },
+
   async export({ positional, flags }) {
     const dir = zoneOf("writing", positional[0]);
     const file = requireFlag(flags, "file", "bundle to write, e.g. bank.json");
@@ -485,6 +500,7 @@ const NAME_POSITIONAL_COMMANDS = new Set([
   "write",
   "edit",
   "forget",
+  "links",
   "memory-add",
   "memory-recall",
   "memory-update",
@@ -505,6 +521,7 @@ const USAGE_LINES = {
   stats: "stats [dir]",
   map: "map [dir] [--chars N] [--zone writing|memory]",
   mindmap: "mindmap [dir] [--chars N] [--zone writing|memory] [--file out.md]",
+  links: "links [dir] [--name <note>] [--zone writing|memory]",
   export: "export [dir] --file <bundle.json>",
   import: "import [dir] --file <bundle.json> [--force]",
   context: "context [dir] [--focus text] [--notes a.md,b.md] [--memory dir]",
