@@ -83,9 +83,10 @@ Commands (dir defaults to ./notes, or ./memory for memory-*):
   links [dir] [--name <note>] [--zone writing|memory]
       Follow links between notes: with --name, what it points at and what
       points back; without, link/orphan/island/broken counts for the zone.
-  linkmap [dir] [--zone writing|memory] [--file <out.md>]
+  linkmap [dir] [--zone writing|memory] [--max <n>] [--file <out.md>]
       The link graph as a Mermaid flowchart (notes are nodes, links are edges),
-      printed as a fenced block, or written to --file.
+      printed as a fenced block, or written to --file. Orphans are dashed and
+      island members outlined; --max caps the nodes drawn (default 40).
   rename [dir] --from <old> --to <new> [--dry-run] [--zone writing|memory]
       Rename or move a note and rewrite every link that pointed at it.
   export <dir?> --file <bundle.json>
@@ -358,7 +359,9 @@ const handlers = {
     const zone = zoneFlag(flags.zone);
     const dir = zoneOf(zone, positional[0]);
     const graph = await api.linkReport(dir, { includeArchives: zone !== "memory" });
-    const mermaid = api.renderMermaidGraph(graph, zone);
+    const mermaid = api.renderMermaidGraph(graph, zone, {
+      maxNodes: numberFlag(flags, "max", "--max"),
+    });
     if (flags.file === undefined) {
       if (flags.json) {
         return {
@@ -575,7 +578,7 @@ const USAGE_LINES = {
   map: "map [dir] [--chars N] [--zone writing|memory]",
   mindmap: "mindmap [dir] [--chars N] [--zone writing|memory] [--file out.md]",
   links: "links [dir] [--name <note>] [--zone writing|memory]",
-  linkmap: "linkmap [dir] [--zone writing|memory] [--file out.md]",
+  linkmap: "linkmap [dir] [--zone writing|memory] [--max N] [--file out.md]",
   rename: "rename [dir] --from <old> --to <new> [--dry-run]",
   export: "export [dir] --file <bundle.json>",
   import: "import [dir] --file <bundle.json> [--force]",

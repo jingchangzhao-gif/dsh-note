@@ -8,6 +8,7 @@ import {
   renderLinkReport,
   renderMermaidGraph,
   resolveLinkTarget,
+  rewriteLinkTargets,
 } from "../src/links";
 import { appendNote, writeNote } from "../src/notes";
 
@@ -62,6 +63,18 @@ describe("link extraction", () => {
     expect(resolveLinkTarget("today", names)).toBeUndefined(); // two candidates: do not guess
     const oneDeep = new Set(["today.md", "log/today.md"]);
     expect(resolveLinkTarget("today", oneDeep)).toBe("today.md"); // shortest path wins
+  });
+
+  it("rewrites link targets but never inside fenced code", () => {
+    const body = ["See [[old]] and [x](old.md).", "```", "[[old]] and [x](old.md)", "```"].join(
+      "\n",
+    );
+    const { body: next, count } = rewriteLinkTargets(body, (target, form) =>
+      target === "old" || target === "old.md" ? (form === "wiki" ? "new" : "new.md") : undefined,
+    );
+    expect(count).toBe(2);
+    expect(next).toContain("See [[new]] and [x](new.md).");
+    expect(next).toContain("```\n[[old]] and [x](old.md)\n```");
   });
 
   it("resolves aliases, never lets one shadow a real name, and drops ambiguous ones", () => {
@@ -221,6 +234,46 @@ describe("mermaid link graph", () => {
     expect(nodes).toHaveLength(40);
     expect(mermaid).toMatch(/%% 6 more note\(s\) not shown/);
     await fs.rm(dir, { recursive: true, force: true });
+  });
+
+  it("caps the node count on request and clamps silly values", async () => {
+    const dir = await makeDir();
+    await writeNote(dir, "hub.md", "See [a](a.md) and [b](b.md).");
+    await writeNote(dir, "a.md", "Back to [[hub]].");
+    await writeNote(dir, "b.md", "Back to [[hub]].");
+    const graph = await linkReport(dir);
+    const capped = renderMermaidGraph(graph, "writing", { maxNodes: 2 });
+    expect(capped.split("\n").filter((line) => line.includes('["'))).toHaveLength(2);
+    expect(capped).toContain("%% 1 more note(s) not shown");
+
+    // Zero is not "no nodes": the diagram must still say something.
+    expect(renderMermaidGraph(graph, "writing", { maxNodes: 0 })).toContain('n1["hub.md"]');
+    // A huge ask is bounded by the ceiling rather than drawing everything.
+    expect(renderMermaidGraph(graph, "writing", { maxNodes: 10_000 })).not.toContain("not shown");
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
+  it("styles orphans and island members so the picture matches the report", async () => {
+    const dir = await makeDir();
+    await writeNote(dir, "hub.md", "See [a](a.md).");
+    await writeNote(dir, "a.md", "Back to [[hub]].");
+    await writeNote(dir, "p.md", "See [q](q.md).");
+    await writeNote(dir, "q.md", "Back to [[p]].");
+    await writeNote(dir, "lone.md", "nothing");
+    const mermaid = renderMermaidGraph(await linkReport(dir), "writing");
+    expect(mermaid).toContain("classDef orphan");
+    expect(mermaid).toContain("class n5 orphan"); // lone.md, ranked last
+    expect(mermaid).toContain("classDef island");
+    expect(mermaid).toContain("class n3,n4 island");
+
+    // A healthy zone carries no styling at all.
+    const tidy = await makeDir();
+    await writeNote(tidy, "hub.md", "See [a](a.md).");
+    await writeNote(tidy, "a.md", "Back to [[hub]].");
+    const plain = renderMermaidGraph(await linkReport(tidy), "writing");
+    expect(plain).not.toContain("classDef");
+    await fs.rm(dir, { recursive: true, force: true });
+    await fs.rm(tidy, { recursive: true, force: true });
   });
 
   it("sanitizes labels and handles an empty zone", () => {
