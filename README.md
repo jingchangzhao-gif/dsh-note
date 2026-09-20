@@ -55,6 +55,8 @@ decided: use merge commits on paired PRs
 
 - `created`/`updated` timestamps are maintained for free on every write.
 - `summary` is optional and is what `compact` recalls show first.
+- `aliases` (or the legacy `alias`) is a comma separated list of other names a
+  note answers to, used when resolving links (see [`note_links`](#note_links)).
 - `type: archive` marks compaction archives, which recalls/search skip.
 - Unknown keys are preserved on rewrite; values are plain `key: value` lines.
 - A leading `---` block is front matter only when it holds at least one
@@ -216,16 +218,18 @@ for the details of one note).
 
 Free link graph. With a `name`: what that note points at (`out`), what points
 back at it (`back`), and its dangling targets (`broken`). Without one: the
-zone's `links` count, its `orphans` (nothing links to or from them) and every
-`broken` target.
+zone's `links` count, its `orphans` (nothing links to or from them), the linked
+**`islands`** cut off from the biggest cluster, and every `broken` target.
 
 Both markdown links (`[label](decisions.md)`, and `<…>` for names with spaces)
 and wikilinks (`[[decisions]]`, optionally `[[target|label]]`) count. A target
 resolves the way the note-taking ecosystem resolves links: exact zone-relative
 path, then `+".md"`, then a unique file **basename**, case-insensitively and
 shortest path first — so `[[decisions]]` finds `decisions.md` and `[[today]]`
-finds `log/today.md`. An ambiguous name (two files with that basename at the
-same depth) stays unresolved rather than guessing.
+finds `log/today.md`. Failing all that, a bare name may match a front matter
+`aliases:` entry (`aliases: adr, choices` lets `[[adr]]` reach the note), which
+can never shadow a real file name. A name with two equally good candidates
+stays unresolved rather than guessing.
 
 Not links between notes, so ignored: URLs, in-page anchors, absolute paths,
 image and media targets, `![alt](…)` embeds, links inside fenced code blocks,

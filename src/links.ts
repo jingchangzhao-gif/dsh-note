@@ -15,7 +15,7 @@
 // hide that nothing else reaches it).
 
 import { promises as fs } from "node:fs";
-import { parseFrontMatter } from "./frontmatter";
+import { parseFrontMatter, parseTagsList } from "./frontmatter";
 import { isArchive, listNotes } from "./notes";
 
 const WIKILINK_RE = /\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/g;
@@ -67,13 +67,35 @@ function basenameStem(name: string): string {
   return base.replace(/\.(?:md|markdown|txt)$/i, "");
 }
 
+/** Aliases that name exactly one file, lower-cased; ambiguous ones are dropped. */
+export function uniqueAliases(inputs: readonly LinkInput[]): Map<string, string> {
+  const owners = new Map<string, string[]>();
+  for (const input of inputs) {
+    for (const alias of input.aliases ?? []) {
+      const key = alias.trim().toLowerCase();
+      if (key === "") continue;
+      owners.set(key, [...(owners.get(key) ?? []), input.name]);
+    }
+  }
+  const unique = new Map<string, string>();
+  for (const [alias, names] of owners) {
+    if (names.length === 1) unique.set(alias, names[0]);
+  }
+  return unique;
+}
+
 /**
  * Resolve a target to a file in the zone. Exact path first, then the bare name
  * against file basenames (case-insensitively, shortest path preferred, the
- * Obsidian/awiki rule). Two equally good candidates mean the name is ambiguous,
- * and an ambiguous name resolves to nothing instead of guessing.
+ * Obsidian/awiki rule), then a front matter alias. Two equally good candidates
+ * mean the name is ambiguous, and an ambiguous name resolves to nothing instead
+ * of guessing. Aliases cannot shadow a real file name: they are tried last.
  */
-export function resolveLinkTarget(target: string, names: ReadonlySet<string>): string | undefined {
+export function resolveLinkTarget(
+  target: string,
+  names: ReadonlySet<string>,
+  aliases?: ReadonlyMap<string, string>,
+): string | undefined {
   const clean = target.replace(/\\/g, "/").replace(/^\.\//, "").replace(/^<|>$/g, "").trim();
   if (clean === "") return undefined;
   if (names.has(clean)) return clean;
@@ -84,10 +106,15 @@ export function resolveLinkTarget(target: string, names: ReadonlySet<string>): s
   const candidates = [...names].filter(
     (name) => wanted.has(name.toLowerCase()) || basenameStem(name).toLowerCase() === lower,
   );
-  if (candidates.length === 0) return undefined;
-  const shallowest = Math.min(...candidates.map((name) => name.split("/").length));
-  const best = candidates.filter((name) => name.split("/").length === shallowest).sort();
-  return best.length === 1 ? best[0] : undefined;
+  if (candidates.length > 0) {
+    const shallowest = Math.min(...candidates.map((name) => name.split("/").length));
+    const best = candidates.filter((name) => name.split("/").length === shallowest).sort();
+    return best.length === 1 ? best[0] : undefined;
+  }
+  // A path is a path; only a bare name can be an alias.
+  if (clean.includes("/")) return undefined;
+  const byAlias = aliases?.get(lower);
+  return byAlias && names.has(byAlias) ? byAlias : undefined;
 }
 
 export interface NoteLinks {
@@ -109,6 +136,11 @@ export interface LinkReport {
   broken: string[];
   /** notes with no links in or out — empty when the zone has no links at all */
   orphans: string[];
+  /**
+   * Linked clusters cut off from the largest one ("islands"), each as its
+   * sorted member names, biggest first. Single notes are orphans, not islands.
+   */
+  islands: string[][];
   /** filled only when a note was asked for */
   note?: NoteLinks;
 }
@@ -136,6 +168,34 @@ export interface LinkInput {
   name: string;
   /** body text, front matter already stripped */
   body: string;
+  /** front matter aliases that may also name this note */
+  aliases?: string[];
+}
+
+/** Group notes into connected components over the (undirected) link edges. */
+function componentsOf(names: readonly string[], edges: readonly LinkEdge[]): string[][] {
+  const parent = new Map(names.map((name) => [name, name]));
+  const find = (start: string): string => {
+    let root = start;
+    while (parent.get(root) !== root) root = parent.get(root) ?? root;
+    let walk = start;
+    while (parent.get(walk) !== root) {
+      const next = parent.get(walk) ?? root;
+      parent.set(walk, root);
+      walk = next;
+    }
+    return root;
+  };
+  for (const edge of edges) {
+    if (!parent.has(edge.from) || !parent.has(edge.to)) continue;
+    parent.set(find(edge.from), find(edge.to));
+  }
+  const groups = new Map<string, string[]>();
+  for (const name of names) {
+    const root = find(name);
+    groups.set(root, [...(groups.get(root) ?? []), name]);
+  }
+  return [...groups.values()].map((group) => group.sort());
 }
 
 /**
@@ -148,6 +208,7 @@ export function buildLinkGraph(
   focus?: string,
 ): LinkGraph {
   const names = new Set(inputs.map((input) => input.name));
+  const aliases = uniqueAliases(inputs);
   const out = new Map<string, string[]>();
   const back = new Map<string, string[]>();
   const brokenBy = new Map<string, string[]>();
@@ -158,7 +219,7 @@ export function buildLinkGraph(
     const resolved = new Set<string>();
     const missing = new Set<string>();
     for (const target of extractLinks(input.body)) {
-      const hit = resolveLinkTarget(target, names);
+      const hit = resolveLinkTarget(target, names, aliases);
       // A self-link is not connectivity: it must not hide an unreachable note.
       if (hit && hit !== input.name) resolved.add(hit);
       else if (!hit) {
@@ -176,6 +237,12 @@ export function buildLinkGraph(
   }
 
   const links = [...out.values()].reduce((sum, list) => sum + list.length, 0);
+  // Islands only mean something once the zone is linked at all; a cluster is a
+  // component of more than one note, so a lone note stays an orphan.
+  const components = links === 0 ? [] : componentsOf([...names], edges);
+  const clusters = components
+    .filter((group) => group.length > 1)
+    .sort((a, b) => b.length - a.length || (a[0] < b[0] ? -1 : 1));
   const report: LinkGraph = {
     dir,
     files: inputs.length,
@@ -191,12 +258,13 @@ export function buildLinkGraph(
             .filter(
               (name) => (out.get(name)?.length ?? 0) === 0 && (back.get(name)?.length ?? 0) === 0,
             ),
+    islands: clusters.slice(1),
     edges,
   };
 
   const want = focus?.trim();
   if (want) {
-    const name = resolveLinkTarget(want, names);
+    const name = resolveLinkTarget(want, names, aliases);
     if (!name) throw new Error(`Note not found in this zone: ${want}`);
     report.note = {
       name,
@@ -216,13 +284,18 @@ export async function linkReport(zoneDir: string, options: LinkOptions = {}): Pr
   const inputs: LinkInput[] = [];
   for (const note of notes) {
     // listNotes skipped anything unreadable, so a failure here is real.
+    const fm = parseFrontMatter(await fs.readFile(note.path, "utf8"));
     inputs.push({
       name: note.name,
-      body: parseFrontMatter(await fs.readFile(note.path, "utf8")).body,
+      body: fm.body,
+      aliases: parseTagsList(fm.meta.aliases ?? fm.meta.alias),
     });
   }
   return buildLinkGraph(zoneDir, inputs, options.name);
 }
+
+/** Island clusters a rendered report lists before it starts counting. */
+const ISLAND_CLUSTERS_SHOWN = 3;
 
 /** Render a report the same way for the tool and the CLI. */
 export function renderLinkReport(report: LinkReport, label = "zone"): string {
@@ -243,6 +316,14 @@ export function renderLinkReport(report: LinkReport, label = "zone"): string {
   }
   const lines = [`${label}: ${report.files} file(s), ${report.links} link(s)`];
   if (report.orphans.length > 0) lines.push(`orphans: ${report.orphans.join(", ")}`);
+  if (report.islands.length > 0) {
+    const shown = report.islands
+      .slice(0, ISLAND_CLUSTERS_SHOWN)
+      .map((group) => group.join("+"))
+      .join(" | ");
+    const rest = report.islands.length - ISLAND_CLUSTERS_SHOWN;
+    lines.push(`islands: ${rest > 0 ? `${shown} (+${rest})` : shown}`);
+  }
   if (report.broken.length > 0) lines.push(`broken: ${report.broken.join(", ")}`);
   return lines.join("\n");
 }

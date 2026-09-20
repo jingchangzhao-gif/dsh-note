@@ -513,7 +513,7 @@ export const noteMapTool = defineTool({
 export const noteLinksTool = defineTool({
   name: "note_links",
   description:
-    "Follow links between notes for free. With a name: what that note points at, what points back at it, and its dangling targets. Without one: the zone's link count, the notes nothing links to or from, and every broken target. Use it to reach related notes without keyword search, and to notice stranded ones.",
+    "Follow links between notes for free. With a name: what that note points at, what points back at it, and its dangling targets. Without one: the zone's link count, the notes nothing links to or from, link clusters cut off from the main one, and every broken target. Targets resolve by path, then file name, then a front matter alias. Use it to reach related notes without keyword search, and to notice stranded ones.",
   parameters: {
     name: { type: "string", description: "Optional note to focus on, e.g. session.md." },
     zone: { type: "string", description: '"writing" (default) or "memory".' },
@@ -529,6 +529,7 @@ export const noteLinksTool = defineTool({
         links: { type: "number" },
         broken: { type: "array", items: { type: "string" } },
         orphans: { type: "array", items: { type: "string" } },
+        islands: { type: "array", items: { type: "array", items: { type: "string" } } },
         note: {
           type: "object",
           properties: {
@@ -562,6 +563,7 @@ export const noteLinksTool = defineTool({
       links: report.links,
       broken: report.broken,
       orphans: report.orphans,
+      islands: report.islands,
       // Absent rather than undefined: the schema has no place for undefined.
       ...(report.note ? { note: report.note } : {}),
     };

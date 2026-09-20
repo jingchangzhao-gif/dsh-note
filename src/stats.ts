@@ -4,7 +4,7 @@
 // `zoneStats` gives the totals, `zoneMap` the outline.
 
 import { promises as fs } from "node:fs";
-import { parseFrontMatter } from "./frontmatter";
+import { parseFrontMatter, parseTagsList } from "./frontmatter";
 import { buildLinkGraph } from "./links";
 import { clampInt, parseMemory } from "./memory";
 import type { MemoryEntry } from "./memory";
@@ -130,20 +130,22 @@ export async function zoneMap(zoneDir: string, options: MapOptions = {}): Promis
   );
   // Read each file once and read all of them: the link graph needs every body,
   // so an early exit on the budget would silently under-count relationships.
-  const prepared: { note: NoteFile; body: string; bytes: number }[] = [];
+  const prepared: { note: NoteFile; body: string; bytes: number; aliases: string[] }[] = [];
   for (const note of notes) {
     // listNotes already skipped anything unreadable; a vanished file should be
     // loud here rather than silently shrinking the map.
     const raw = await fs.readFile(note.path, "utf8");
+    const fm = parseFrontMatter(raw);
     prepared.push({
       note,
-      body: parseFrontMatter(raw).body,
+      body: fm.body,
       bytes: Buffer.byteLength(raw, "utf8"),
+      aliases: parseTagsList(fm.meta.aliases ?? fm.meta.alias),
     });
   }
   const graph = buildLinkGraph(
     zoneDir,
-    prepared.map(({ note, body }) => ({ name: note.name, body })),
+    prepared.map(({ note, body, aliases }) => ({ name: note.name, body, aliases })),
   );
 
   const files: MapFile[] = [];

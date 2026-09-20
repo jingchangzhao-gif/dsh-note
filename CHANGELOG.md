@@ -22,6 +22,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   without one, the zone's link count, orphans and every broken target. Markdown
   links and `[[wikilinks]]` both count, while URLs, anchors, absolute paths and
   fenced code blocks are ignored.
+- Front matter `aliases:` (or the legacy `alias:`) now resolve links: a bare
+  `[[adr]]` reaches `decisions.md` when that note lists `aliases: adr`. Aliases
+  are tried last, so they can never shadow a real file name, and an alias two
+  notes share stays unresolved.
+- `note_links` and `links` report **islands**: linked clusters cut off from the
+  biggest one, which orphans alone cannot show. A lone note stays an orphan.
 - `linkmap` CLI command: the link graph as a Mermaid `flowchart` — notes are
   nodes, links are edges — for a human to look at. Hubs are drawn first and the
   diagram stops at 40 nodes, because a 200-node hairball is not a map.

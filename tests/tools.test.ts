@@ -305,6 +305,13 @@ describe("note tools", () => {
     expect(note.note).toMatchObject({ name: "hub.md", out: ["a.md"], back: ["a.md"] });
     await expect(run(noteLinksTool, root, { name: "ghost.md" })).rejects.toThrow(/Note not found/);
     await expect(run(noteLinksTool, root, { zone: "bogus" })).rejects.toThrow(/zone must be/);
+
+    // A second, unconnected pair is an island — and returning it proves the
+    // output schema accepts nested arrays.
+    await writeNote(join(root, "notes"), "p.md", "See [q](q.md).");
+    await writeNote(join(root, "notes"), "q.md", "Back to [[p]].");
+    const clustered = await run<{ islands: string[][] }>(noteLinksTool, root, {});
+    expect(clustered.islands).toEqual([["p.md", "q.md"]]);
     await fs.rm(root, { recursive: true, force: true });
   });
 
