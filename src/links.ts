@@ -16,6 +16,7 @@
 
 import { promises as fs } from "node:fs";
 import { parseFrontMatter, parseTagsList } from "./frontmatter";
+import { clampInt } from "./memory";
 import { isArchive, listNotes } from "./notes";
 
 const WIKILINK_RE = /\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/g;
@@ -397,6 +398,8 @@ export function renderLinkReport(report: LinkReport, label = "zone"): string {
 
 /** Nodes a rendered link graph draws before it starts counting. */
 const GRAPH_NODES_MAX = 40;
+/** Hard ceiling for a requested node count, so one flag cannot draw 10k boxes. */
+const GRAPH_NODES_LIMIT = 500;
 /** Longest node label a rendered graph keeps. */
 const GRAPH_LABEL_CHARS = 40;
 
@@ -406,13 +409,24 @@ function graphText(text: string): string {
   return flat.length > GRAPH_LABEL_CHARS ? `${flat.slice(0, GRAPH_LABEL_CHARS)}…` : flat;
 }
 
+export interface GraphOptions {
+  /** most nodes to draw (default 40, clamped to 1..500) */
+  maxNodes?: number;
+}
+
 /**
  * The link graph as a Mermaid flowchart, for a human: notes are nodes, links
- * are edges. Hubs are drawn first, and past {@link GRAPH_NODES_MAX} only the
+ * are edges. Hubs are drawn first, and past the node cap only the
  * best-connected survive — a 200-node diagram is a hairball, not a map, and the
- * omitted count is left in a Mermaid comment.
+ * omitted count is left in a Mermaid comment. Orphans and island members are
+ * styled, so the picture shows what the text report says.
  */
-export function renderMermaidGraph(graph: LinkGraph, label = "zone"): string {
+export function renderMermaidGraph(
+  graph: LinkGraph,
+  label = "zone",
+  options: GraphOptions = {},
+): string {
+  const maxNodes = clampInt(options.maxNodes, GRAPH_NODES_MAX, 1, GRAPH_NODES_LIMIT);
   const degrees = new Map<string, number>();
   for (const edge of graph.edges) {
     degrees.set(edge.from, (degrees.get(edge.from) ?? 0) + 1);
@@ -422,7 +436,7 @@ export function renderMermaidGraph(graph: LinkGraph, label = "zone"): string {
   const ranked = [...degrees.entries()]
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
     .map(([name]) => name);
-  const drawn = ranked.slice(0, GRAPH_NODES_MAX);
+  const drawn = ranked.slice(0, maxNodes);
   const ids = new Map(drawn.map((name, index) => [name, `n${index + 1}`]));
 
   // No root hub: an invented centre would add edges that are not links.
@@ -432,6 +446,18 @@ export function renderMermaidGraph(graph: LinkGraph, label = "zone"): string {
     const from = ids.get(edge.from);
     const to = ids.get(edge.to);
     if (from && to) lines.push(`  ${from} --> ${to}`);
+  }
+  const classIds = (names: readonly string[]): string[] =>
+    names.filter((name) => ids.has(name)).map((name) => ids.get(name) ?? "");
+  const orphans = classIds(graph.orphans);
+  const islanded = classIds(graph.islands.flat());
+  if (orphans.length > 0) {
+    lines.push("  classDef orphan fill:#f6f6f6,stroke:#9a9a9a,stroke-dasharray:5 5");
+    lines.push(`  class ${orphans.join(",")} orphan`);
+  }
+  if (islanded.length > 0) {
+    lines.push("  classDef island fill:#fff4e5,stroke:#d9822b,stroke-width:2px");
+    lines.push(`  class ${islanded.join(",")} island`);
   }
   const omitted = ranked.length - drawn.length;
   if (omitted > 0) lines.push(`  %% ${omitted} more note(s) not shown`);

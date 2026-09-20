@@ -356,7 +356,7 @@ macOS is identical with `./run.command` instead of `run.bat`.
 | `map [dir] [--chars N] [--zone writing\|memory]`                       | Outline a zone: file lines + newest headings    |
 | `mindmap [dir] [--chars N] [--zone ...] [--file out.md]`               | The outline as a Mermaid mind map (renders)     |
 | `links [dir] [--name <note>] [--zone writing\|memory]`                 | Follow links: out, back, broken, orphans        |
-| `linkmap [dir] [--zone ...] [--file out.md]`                           | The link graph as a Mermaid flowchart           |
+| `linkmap [dir] [--zone ...] [--max N] [--file out.md]`                 | The link graph as a Mermaid flowchart           |
 | `rename [dir] --from <old> --to <new> [--dry-run]`                     | Move a note and rewrite the links into it       |
 | `export <dir?> --file f.json`                                          | Snapshot the whole folder into one JSON file    |
 | `import <dir?> --file f.json [--force]`                                | Write a snapshot back (skips existing files)    |
@@ -379,6 +379,9 @@ Notes:
 <path>` (UTF-8) or `--content -` and pipe stdin. `"$@"` on macOS/Linux
   forwards arguments byte-exactly; on Windows `%*` is re-parsed by cmd (`%`,
   `!` and `^` are special), so prefer `--file` or stdin there for tricky text.
+- `linkmap` draws the graph as a Mermaid flowchart: hubs first, orphans dashed
+  and island members outlined, so the picture says what `links` reports.
+  `--max N` caps the nodes drawn (default 40, ceiling 500).
 - `export`/`import` move a whole folder as one JSON file (backup, another
   machine, another workspace). `import` skips files that already exist unless
   `--force` is passed, so a restore can never silently clobber newer notes.

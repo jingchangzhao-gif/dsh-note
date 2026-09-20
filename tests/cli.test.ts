@@ -304,6 +304,9 @@ describe("cli.mjs end to end", () => {
     expect(printed.stdout).toContain('["hub.md"]');
     expect(printed.stdout).toContain("-->");
 
+    const capped = await runCli(["linkmap", dir, "--max", "1"]);
+    expect(capped.stdout).toContain("%% 1 more note(s) not shown");
+
     const out = join(dir, "graph.md");
     const written = await runCli(["linkmap", dir, "--file", out]);
     expect(written.stdout).toContain(`Wrote ${out}`);

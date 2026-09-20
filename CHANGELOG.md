@@ -37,6 +37,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   nodes, links are edges — for a human to look at. Hubs are drawn first and the
   diagram stops at 40 nodes, because a 200-node hairball is not a map.
 
+### Changed
+
+- `linkmap` now styles what needs attention — orphans dashed, island members
+  outlined — and takes `--max N` for the node cap (default 40, ceiling 500)
+  instead of a hard-coded 40.
+
 ### Fixed
 
 - Link parsing follows the note-taking ecosystem now. `![alt](image.png)` and
