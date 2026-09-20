@@ -16,6 +16,8 @@ import {
   zoneRoot,
 } from "./notes";
 import type { NoteFile, Zone } from "./notes";
+import { linkReport, renderLinkReport } from "./links";
+import type { LinkReport } from "./links";
 import { renderZoneMap, zoneMap, zoneStats } from "./stats";
 import type { ZoneMap } from "./stats";
 import { booleanOf, cwdOf, number, text, type ExecShape } from "./tool-util";
@@ -502,6 +504,64 @@ export const noteMapTool = defineTool({
       includeArchives: zone !== "memory",
     });
     return { zone, ...map };
+  },
+});
+
+export const noteLinksTool = defineTool({
+  name: "note_links",
+  description:
+    "Follow links between notes for free. With a name: what that note points at, what points back at it, and its dangling targets. Without one: the zone's link count, the notes nothing links to or from, and every broken target. Use it to reach related notes without keyword search, and to notice stranded ones.",
+  parameters: {
+    name: { type: "string", description: "Optional note to focus on, e.g. session.md." },
+    zone: { type: "string", description: '"writing" (default) or "memory".' },
+    dir: { type: "string", description: "Optional directory override for the selected zone." },
+  },
+  output: {
+    schema: {
+      type: "object",
+      properties: {
+        zone: { type: "string" },
+        dir: { type: "string" },
+        files: { type: "number" },
+        links: { type: "number" },
+        broken: { type: "array", items: { type: "string" } },
+        orphans: { type: "array", items: { type: "string" } },
+        note: {
+          type: "object",
+          properties: {
+            name: { type: "string" },
+            out: { type: "array", items: { type: "string" } },
+            back: { type: "array", items: { type: "string" } },
+            broken: { type: "array", items: { type: "string" } },
+          },
+          additionalProperties: false,
+        },
+      },
+      additionalProperties: false,
+    },
+    render: (_args, value) => {
+      const v = value as LinkReport & { zone?: string };
+      return [{ type: "text", text: renderLinkReport(v, v.zone ?? "zone") }];
+    },
+  },
+  async execute(args, exec) {
+    const { name, zone: zoneValue, dir } = (args ?? {}) as Record<string, unknown>;
+    const zone = zoneArg(zoneValue, "writing");
+    const root = zoneDir(zone, cwdOf(exec as ExecShape | undefined), text(dir));
+    const report = await linkReport(root, {
+      name: text(name),
+      includeArchives: zone !== "memory",
+    });
+    return {
+      zone,
+      dir: report.dir,
+      files: report.files,
+      links: report.links,
+      broken: report.broken,
+      orphans: report.orphans,
+      // Absent rather than undefined: the schema has no place for undefined.
+      ...(report.note ? { note: report.note } : {}),
+    };
   },
 });
 

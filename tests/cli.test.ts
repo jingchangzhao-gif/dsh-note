@@ -281,6 +281,20 @@ describe("cli.mjs end to end", () => {
     await fs.rm(dir, { recursive: true, force: true });
   });
 
+  it("links follows note links, for the zone and for one note", async () => {
+    const dir = await makeDir();
+    await runCli(["write", dir, "--name", "hub.md", "--content", "See [a](a.md)."]);
+    await runCli(["write", dir, "--name", "a.md", "--content", "Back to [[hub]]."]);
+    const text = await runCli(["links", dir]);
+    expect(text.stdout).toContain("2 file(s), 2 link(s)");
+    const one = await runCli(["links", dir, "hub"]); // positional note name
+    expect(one.stdout).toContain("hub.md: 1 out, 1 back");
+    expect(one.stdout).toContain("back: a.md");
+    const json = JSON.parse((await runCli(["links", dir, "--json"])).stdout) as { links: number };
+    expect(json.links).toBe(2);
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
   it("stats reports the zone size, in text and as JSON", async () => {
     const dir = await makeDir();
     await runCli(["remember", dir, "--name", "a.md", "--content", "hello"]);

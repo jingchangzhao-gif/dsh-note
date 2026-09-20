@@ -74,6 +74,7 @@ decided: use merge commits on paired PRs
 | `note_forget`    | Delete a note file from either zone                                       | free |
 | `note_stats`     | Size up a zone: files, archives, entries, bytes, largest file             | free |
 | `note_map`       | **Outline** a zone: file lines + newest entry headings, under a budget    | free |
+| `note_links`     | Follow links between notes: out, back, broken, orphans                    | free |
 | `note_context`   | Assemble the small bounded context around a focus (tail-first)            | free |
 | `memory_add`     | Append a timestamped entry to the long-term bank                          | free |
 | `memory_recall`  | Recall the recent/relevant **small chunk** (query/tags/type/date filters) | free |
@@ -107,6 +108,9 @@ step. See [`docs/workflows.md`](docs/workflows.md) for ready-to-use recipes.
 7. **Map before recall**: `note_map` returns the outline — file lines plus the
    newest entry headings — so the model can pick the right file without paying
    for entry bodies at all.
+8. **Follow, don't search**: `note_links` walks the links a note already has, so
+   related context costs one hop instead of a keyword scan — and `orphans`
+   shows which notes nothing reaches.
 
 ## Installation
 
@@ -197,6 +201,23 @@ plus each file's newest entry headings, newest first, truncated to `chars`.
 Entry headings usually carry the gist (`2024-06-01 — use pnpm`), so a map is
 often enough to decide _which_ file to recall without paying for entry bodies.
 `total` counts the files in the zone, `omitted` the ones the budget left out.
+
+### `note_links`
+
+```json
+{ "name": "session.md" }
+```
+
+Free link graph. With a `name`: what that note points at (`out`), what points
+back at it (`back`), and its dangling targets (`broken`). Without one: the
+zone's `links` count, its `orphans` (nothing links to or from them) and every
+`broken` target.
+
+Both markdown links (`[label](decisions.md)`) and wikilinks (`[[decisions]]`,
+optionally `[[target|label]]`) count. Targets are zone-relative names, so
+`[[decisions]]` finds `decisions.md` and `[[log/today]]` finds `log/today.md`.
+URLs, in-page anchors, absolute paths and links inside fenced code blocks are
+ignored, since they are not links between notes.
 
 ### `note_context`
 
@@ -302,6 +323,7 @@ macOS is identical with `./run.command` instead of `run.bat`.
 | `stats [dir]`                                                          | Zone inventory: files, archives, entries, bytes |
 | `map [dir] [--chars N] [--zone writing\|memory]`                       | Outline a zone: file lines + newest headings    |
 | `mindmap [dir] [--chars N] [--zone ...] [--file out.md]`               | The outline as a Mermaid mind map (renders)     |
+| `links [dir] [--name <note>] [--zone writing\|memory]`                 | Follow links: out, back, broken, orphans        |
 | `export <dir?> --file f.json`                                          | Snapshot the whole folder into one JSON file    |
 | `import <dir?> --file f.json [--force]`                                | Write a snapshot back (skips existing files)    |
 | `context <dir?> [--focus q] [--notes a,b] [--memory <dir>]`            | Assemble a small bounded context packet         |
@@ -328,7 +350,7 @@ Notes:
   `--force` is passed, so a restore can never silently clobber newer notes.
   These two are CLI-only — the agent tools have no bundle equivalent.
 - The same package also works as a dsh plugin inside the DeepSeek Harness
-  GUI (`dsh plugin --profile web add dsh-note`); its 15 tools cover the note
+  GUI (`dsh plugin --profile web add dsh-note`); its 16 tools cover the note
   and memory commands above.
 
 ## Development
