@@ -36,6 +36,7 @@ const COMMANDS = new Set([
   "map",
   "mindmap",
   "links",
+  "linkmap",
   "export",
   "import",
   "context",
@@ -81,6 +82,9 @@ Commands (dir defaults to ./notes, or ./memory for memory-*):
   links [dir] [--name <note>] [--zone writing|memory]
       Follow links between notes: with --name, what it points at and what
       points back; without, link/orphan/broken counts for the zone.
+  linkmap [dir] [--zone writing|memory] [--file <out.md>]
+      The link graph as a Mermaid flowchart (notes are nodes, links are edges),
+      printed as a fenced block, or written to --file.
   export <dir?> --file <bundle.json>
       Snapshot the whole folder (archives included) into one JSON file.
   import <dir?> --file <bundle.json> [--force]
@@ -347,6 +351,34 @@ const handlers = {
     return { text: api.renderLinkReport(report, zone) };
   },
 
+  async linkmap({ positional, flags }) {
+    const zone = zoneFlag(flags.zone);
+    const dir = zoneOf(zone, positional[0]);
+    const graph = await api.linkReport(dir, { includeArchives: zone !== "memory" });
+    const mermaid = api.renderMermaidGraph(graph, zone);
+    if (flags.file === undefined) {
+      if (flags.json) {
+        return {
+          json: {
+            zone,
+            dir: graph.dir,
+            files: graph.files,
+            links: graph.links,
+            edges: graph.edges.length,
+            mermaid,
+          },
+        };
+      }
+      return { text: mermaid };
+    }
+    await api.ensureDir(dirname(flags.file));
+    await api.writeTextFile(flags.file, `${mermaid}\n`);
+    if (flags.json) {
+      return { json: { zone, dir: graph.dir, file: flags.file, mermaid } };
+    }
+    return { text: `Wrote ${flags.file}` };
+  },
+
   async export({ positional, flags }) {
     const dir = zoneOf("writing", positional[0]);
     const file = requireFlag(flags, "file", "bundle to write, e.g. bank.json");
@@ -522,6 +554,7 @@ const USAGE_LINES = {
   map: "map [dir] [--chars N] [--zone writing|memory]",
   mindmap: "mindmap [dir] [--chars N] [--zone writing|memory] [--file out.md]",
   links: "links [dir] [--name <note>] [--zone writing|memory]",
+  linkmap: "linkmap [dir] [--zone writing|memory] [--file out.md]",
   export: "export [dir] --file <bundle.json>",
   import: "import [dir] --file <bundle.json> [--force]",
   context: "context [dir] [--focus text] [--notes a.md,b.md] [--memory dir]",

@@ -22,6 +22,21 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   without one, the zone's link count, orphans and every broken target. Markdown
   links and `[[wikilinks]]` both count, while URLs, anchors, absolute paths and
   fenced code blocks are ignored.
+- `linkmap` CLI command: the link graph as a Mermaid `flowchart` — notes are
+  nodes, links are edges — for a human to look at. Hubs are drawn first and the
+  diagram stops at 40 nodes, because a 200-node hairball is not a map.
+
+### Fixed
+
+- Link parsing follows the note-taking ecosystem now. `![alt](image.png)` and
+  media targets are no longer mistaken for broken note links, `[label](<my
+note.md>)` is understood, and a note linking to itself no longer counts as
+  connectivity (which hid that nothing else reached it).
+- A bare `[[today]]` resolves to a unique file basename — case-insensitively,
+  shortest path first — so nested notes are reachable by name. An ambiguous
+  name stays unresolved instead of guessing.
+- `mindmap` node labels carry names and titles only; entry counts and byte
+  sizes were widening every node for information the text map already gives.
 
 ## [0.3.0] - 2026-09-19
 

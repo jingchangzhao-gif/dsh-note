@@ -295,6 +295,22 @@ describe("cli.mjs end to end", () => {
     await fs.rm(dir, { recursive: true, force: true });
   });
 
+  it("linkmap draws the link graph as a Mermaid flowchart", async () => {
+    const dir = await makeDir();
+    await runCli(["write", dir, "--name", "hub.md", "--content", "See [a](a.md)."]);
+    await runCli(["write", dir, "--name", "a.md", "--content", "Back to [[hub]]."]);
+    const printed = await runCli(["linkmap", dir]);
+    expect(printed.stdout).toContain("flowchart LR");
+    expect(printed.stdout).toContain('["hub.md"]');
+    expect(printed.stdout).toContain("-->");
+
+    const out = join(dir, "graph.md");
+    const written = await runCli(["linkmap", dir, "--file", out]);
+    expect(written.stdout).toContain(`Wrote ${out}`);
+    expect(await fs.readFile(out, "utf8")).toContain("flowchart LR");
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
   it("stats reports the zone size, in text and as JSON", async () => {
     const dir = await makeDir();
     await runCli(["remember", dir, "--name", "a.md", "--content", "hello"]);
