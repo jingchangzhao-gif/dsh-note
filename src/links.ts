@@ -21,6 +21,9 @@ import { isArchive, listNotes } from "./notes";
 const WIKILINK_RE = /\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/g;
 // `(<target with spaces>)` is the markdown form for targets that contain them.
 const MARKDOWN_LINK_RE = /\[[^\]]*\]\((<[^>]*>|[^)\s]+)(?:\s+"[^"]*")?\)/g;
+// Rewriting needs the pieces separately: target, #anchor, |label, ("title").
+const WIKILINK_PARTS_RE = /\[\[([^\]|#]+)(#[^\]|]*)?(\|[^\]]*)?\]\]/g;
+const MARKDOWN_PARTS_RE = /(\[[^\]]*\]\()(<[^>]*>|[^)\s]+)(\s+"[^"]*")?(\))/g;
 /** Assets, not notes: an image or media link is not an edge in the graph. */
 const ASSET_RE = /\.(?:png|jpe?g|gif|svg|webp|avif|bmp|ico|pdf|mp3|mp4|mov|webm|wav|ogg)$/i;
 
@@ -59,6 +62,70 @@ export function extractLinks(body: string): string[] {
     }
   }
   return targets;
+}
+
+/** Which syntax a rewritten link used: wikilinks omit the extension, markdown keeps it. */
+export type LinkForm = "wiki" | "markdown";
+
+export interface RewriteResult {
+  body: string;
+  /** link occurrences rewritten */
+  count: number;
+}
+
+/**
+ * Rewrite link targets in a body. The callback receives each target (anchor
+ * stripped) and its syntax, and returns the replacement target, or undefined to
+ * leave that link alone. Anchors, `|labels`, titles, image links and fenced code
+ * blocks are preserved as they were.
+ */
+export function rewriteLinkTargets(
+  body: string,
+  rewrite: (target: string, form: LinkForm) => string | undefined,
+): RewriteResult {
+  let count = 0;
+  let fenced = false;
+  const lines = body.split(/\r?\n/).map((line) => {
+    const start = line.trimStart();
+    if (start.startsWith("```") || start.startsWith("~~~")) {
+      fenced = !fenced;
+      return line;
+    }
+    if (fenced) return line;
+    let out = line.replace(
+      WIKILINK_PARTS_RE,
+      (match: string, target: string, anchor?: string, label?: string) => {
+        const next = rewrite(cleanTarget(target), "wiki");
+        if (next === undefined) return match;
+        count += 1;
+        return `[[${next}${anchor ?? ""}${label ?? ""}]]`;
+      },
+    );
+    out = out.replace(
+      MARKDOWN_PARTS_RE,
+      (
+        match: string,
+        lead: string,
+        rawTarget: string,
+        title: string | undefined,
+        tail: string,
+        offset: number,
+        whole: string,
+      ) => {
+        if (offset > 0 && whole[offset - 1] === "!") return match; // image or file embed
+        const bare = cleanTarget(rawTarget);
+        const hash = bare.indexOf("#");
+        const anchor = hash < 0 ? "" : bare.slice(hash);
+        const next = rewrite(hash < 0 ? bare : bare.slice(0, hash), "markdown");
+        if (next === undefined) return match;
+        count += 1;
+        const target = `${next}${anchor}`;
+        return `${lead}${/\s/.test(target) ? `<${target}>` : target}${title ?? ""}${tail}`;
+      },
+    );
+    return out;
+  });
+  return { body: lines.join("\n"), count };
 }
 
 /** File name without its directory or note extension. */

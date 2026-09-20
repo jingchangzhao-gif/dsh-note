@@ -76,7 +76,8 @@ decided: use merge commits on paired PRs
 | `note_forget`    | Delete a note file from either zone                                       | free |
 | `note_stats`     | Size up a zone: files, archives, entries, bytes, largest file             | free |
 | `note_map`       | **Outline** a zone: file lines + newest entry headings, under a budget    | free |
-| `note_links`     | Follow links between notes: out, back, broken, orphans                    | free |
+| `note_links`     | Follow links between notes: out, back, broken, orphans, islands           | free |
+| `note_rename`    | Rename/move a note and rewrite the links that pointed at it               | free |
 | `note_context`   | Assemble the small bounded context around a focus (tail-first)            | free |
 | `memory_add`     | Append a timestamped entry to the long-term bank                          | free |
 | `memory_recall`  | Recall the recent/relevant **small chunk** (query/tags/type/date filters) | free |
@@ -235,6 +236,21 @@ Not links between notes, so ignored: URLs, in-page anchors, absolute paths,
 image and media targets, `![alt](…)` embeds, links inside fenced code blocks,
 and a note linking to itself (which would only hide that nothing reaches it).
 
+### `note_rename`
+
+```json
+{ "from": "session.md", "to": "log/session.md" }
+```
+
+Moves the note and rewrites every link that resolved to it, so the graph does
+not break. Wikilinks keep their style (no extension), markdown links keep
+their extension, and `#anchors`, `|labels` and link titles survive. Links that
+reached the note through an alias are rewritten too.
+
+`dryRun: true` returns the plan — which notes would change and how many links —
+without touching a file. A target name that already exists is refused rather
+than overwritten, and renaming a note to its own name is a no-op.
+
 ### `note_context`
 
 ```json
@@ -341,6 +357,7 @@ macOS is identical with `./run.command` instead of `run.bat`.
 | `mindmap [dir] [--chars N] [--zone ...] [--file out.md]`               | The outline as a Mermaid mind map (renders)     |
 | `links [dir] [--name <note>] [--zone writing\|memory]`                 | Follow links: out, back, broken, orphans        |
 | `linkmap [dir] [--zone ...] [--file out.md]`                           | The link graph as a Mermaid flowchart           |
+| `rename [dir] --from <old> --to <new> [--dry-run]`                     | Move a note and rewrite the links into it       |
 | `export <dir?> --file f.json`                                          | Snapshot the whole folder into one JSON file    |
 | `import <dir?> --file f.json [--force]`                                | Write a snapshot back (skips existing files)    |
 | `context <dir?> [--focus q] [--notes a,b] [--memory <dir>]`            | Assemble a small bounded context packet         |
@@ -367,7 +384,7 @@ Notes:
   `--force` is passed, so a restore can never silently clobber newer notes.
   These two are CLI-only — the agent tools have no bundle equivalent.
 - The same package also works as a dsh plugin inside the DeepSeek Harness
-  GUI (`dsh plugin --profile web add dsh-note`); its 16 tools cover the note
+  GUI (`dsh plugin --profile web add dsh-note`); its 17 tools cover the note
   and memory commands above.
 
 ## Development

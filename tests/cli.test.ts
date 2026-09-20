@@ -311,6 +311,22 @@ describe("cli.mjs end to end", () => {
     await fs.rm(dir, { recursive: true, force: true });
   });
 
+  it("rename moves a note and rewrites the links into it", async () => {
+    const dir = await makeDir();
+    await runCli(["write", dir, "--name", "a.md", "--content", "body"]);
+    await runCli(["write", dir, "--name", "hub.md", "--content", "See [[a]]."]);
+
+    const plan = await runCli(["rename", dir, "--from", "a.md", "--to", "b.md", "--dry-run"]);
+    expect(plan.stdout).toContain("Would rename a.md -> b.md, 1 link(s) in 1 note(s)");
+    expect((await runCli(["recall", dir, "--name", "hub.md"])).stdout).toContain("[[a]]");
+
+    const done = await runCli(["rename", dir, "--from", "a.md", "--to", "b.md"]);
+    expect(done.stdout).toContain("Renamed a.md -> b.md");
+    expect((await runCli(["recall", dir, "--name", "hub.md"])).stdout).toContain("[[b]]");
+    expect((await runCli(["recall", dir, "--name", "b.md"])).stdout).toContain("body");
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
   it("stats reports the zone size, in text and as JSON", async () => {
     const dir = await makeDir();
     await runCli(["remember", dir, "--name", "a.md", "--content", "hello"]);
