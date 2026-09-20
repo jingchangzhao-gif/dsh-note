@@ -133,6 +133,38 @@ describe("zone map", () => {
     await fs.rm(dir, { recursive: true, force: true });
   });
 
+  it("carries the link structure into the map, and stays quiet without links", async () => {
+    const dir = await makeDir();
+    await writeNote(dir, "hub.md", "See [a](a.md) and [gone](gone.md).");
+    await writeNote(dir, "a.md", "Back to [[hub]].");
+    await writeNote(dir, "b.md", "alone");
+    const map = await zoneMap(dir);
+    expect(map).toMatchObject({ links: 2, broken: ["gone.md"], orphans: ["b.md"] });
+    const text = renderZoneMap(map, "writing");
+    expect(text).toContain("links: 2 (1 broken)");
+    expect(text).toContain("orphans: b.md");
+
+    const quiet = await makeDir();
+    await writeNote(quiet, "x.md", "no links");
+    expect(renderZoneMap(await zoneMap(quiet), "memory")).not.toContain("links:");
+    await fs.rm(dir, { recursive: true, force: true });
+    await fs.rm(quiet, { recursive: true, force: true });
+  });
+
+  it("lists five orphan names and counts the rest", async () => {
+    const dir = await makeDir();
+    await writeNote(dir, "hub.md", "See [a](a.md).");
+    await writeNote(dir, "a.md", "Back to [[hub]].");
+    for (let index = 0; index < 6; index += 1) {
+      await writeNote(dir, `orphan-${index}.md`, "no links");
+    }
+    const text = renderZoneMap(await zoneMap(dir), "writing");
+    expect(text).toMatch(
+      /orphans: orphan-0\.md, orphan-1\.md, orphan-2\.md, orphan-3\.md, orphan-4\.md \(\+1\)/,
+    );
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
   it("renders the same outline as a sanitized Mermaid mind map", async () => {
     const dir = await makeDir();
     await addMemoryEntry(dir, "body", {
@@ -152,7 +184,16 @@ describe("zone map", () => {
     expect(longLabel?.length).toBeLessThan(90); // capped at 60 chars inside ["…"]
 
     const empty = renderMermaidMap(
-      { dir, files: [], total: 0, omitted: 2, truncated: true },
+      {
+        dir,
+        files: [],
+        total: 0,
+        omitted: 2,
+        truncated: true,
+        links: 0,
+        broken: [],
+        orphans: [],
+      },
       "writing",
     );
     expect(empty).toContain('more["… 2 more file(s) not shown"]');

@@ -269,6 +269,19 @@ describe("note tools", () => {
     expect(text).toContain("memory map: 1 file(s)");
     expect(text).toContain("use pnpm");
     await expect(run(noteMapTool, root, { zone: "bogus" })).rejects.toThrow(/zone must be/);
+
+    // The same call carries the relationship summary, which also proves the
+    // output schema accepts the link fields.
+    await writeNote(join(root, "notes"), "hub.md", "See [a](a.md).");
+    await writeNote(join(root, "notes"), "a.md", "Back to [[hub]].");
+    await writeNote(join(root, "notes"), "b.md", "alone");
+    const linked = await run<{ links: number; orphans: string[] }>(noteMapTool, root, {
+      zone: "writing",
+    });
+    expect(linked).toMatchObject({ links: 2, orphans: ["b.md"] });
+    const linkedText = renderText(noteMapTool, { zone: "writing" }, linked);
+    expect(linkedText).toContain("links: 2");
+    expect(linkedText).toContain("orphans: b.md");
     await fs.rm(root, { recursive: true, force: true });
   });
 

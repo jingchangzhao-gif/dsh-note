@@ -105,9 +105,9 @@ step. See [`docs/workflows.md`](docs/workflows.md) for ready-to-use recipes.
 6. **Size before recall**: `note_stats` reports how many files, entries and
    bytes a zone holds — free — so the model can pick a recall budget instead of
    guessing.
-7. **Map before recall**: `note_map` returns the outline — file lines plus the
-   newest entry headings — so the model can pick the right file without paying
-   for entry bodies at all.
+7. **Map before recall**: `note_map` returns the outline — file lines, the
+   newest entry headings and the zone's link structure — so the model can pick
+   the right file without paying for entry bodies at all.
 8. **Follow, don't search**: `note_links` walks the links a note already has, so
    related context costs one hop instead of a keyword scan — and `orphans`
    shows which notes nothing reaches.
@@ -201,6 +201,12 @@ plus each file's newest entry headings, newest first, truncated to `chars`.
 Entry headings usually carry the gist (`2024-06-01 — use pnpm`), so a map is
 often enough to decide _which_ file to recall without paying for entry bodies.
 `total` counts the files in the zone, `omitted` the ones the budget left out.
+
+The outline also carries the zone's **link structure** — `links`, `broken` and
+`orphans` — rendered as a trailing `links: 3 (1 broken)` / `orphans: …` line, so
+one cheap call answers both "what is here" and "what relates to what". A zone
+with no links between notes says nothing extra (see [`note_links`](#note_links)
+for the details of one note).
 
 ### `note_links`
 
