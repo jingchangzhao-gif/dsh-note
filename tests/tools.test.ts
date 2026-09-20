@@ -25,6 +25,7 @@ import {
   noteLinksTool,
   noteMapTool,
   noteRecallTool,
+  noteRenameTool,
   noteRememberTool,
   noteSearchTool,
   noteStatsTool,
@@ -282,6 +283,35 @@ describe("note tools", () => {
     const linkedText = renderText(noteMapTool, { zone: "writing" }, linked);
     expect(linkedText).toContain("links: 2");
     expect(linkedText).toContain("orphans: b.md");
+    await fs.rm(root, { recursive: true, force: true });
+  });
+
+  it("note_rename moves a note and rewrites the links into it", async () => {
+    const root = await makeRoot();
+    await writeNote(join(root, "notes"), "a.md", "body");
+    await writeNote(join(root, "notes"), "hub.md", "See [[a]].");
+    const plan = await run<{ dryRun: boolean; to: string; links: number }>(noteRenameTool, root, {
+      from: "a.md",
+      to: "b.md",
+      dryRun: true,
+    });
+    expect(plan).toMatchObject({ dryRun: true, to: "b.md", links: 1 });
+    expect(renderText(noteRenameTool, {}, plan)).toBe(
+      "Would rename a.md -> b.md, 1 link(s) in 1 note(s)",
+    );
+
+    const done = await run<{ moved: boolean; rewritten: string[] }>(noteRenameTool, root, {
+      from: "a.md",
+      to: "b.md",
+    });
+    expect(done).toMatchObject({ moved: true, rewritten: ["hub.md"] });
+    expect(renderText(noteRenameTool, {}, done)).toContain("Renamed a.md -> b.md");
+    await expect(run(noteRenameTool, root, { to: "x.md" })).rejects.toThrow(
+      /current note name is required/,
+    );
+    await expect(run(noteRenameTool, root, { from: "b.md" })).rejects.toThrow(
+      /new note name is required/,
+    );
     await fs.rm(root, { recursive: true, force: true });
   });
 

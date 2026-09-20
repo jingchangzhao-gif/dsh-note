@@ -10,3 +10,4 @@ export * from "./view";
 export * from "./stats";
 export * from "./bundle";
 export * from "./links";
+export * from "./rename";

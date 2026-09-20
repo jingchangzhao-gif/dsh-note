@@ -151,6 +151,7 @@ folder; on macOS replace `run.bat` with `./run.command`):
 | `note_stats` | `run.bat stats <dir>` |
 | `note_map` | `run.bat map <dir> [--chars 1200] [--zone memory]` |
 | `note_links` | `run.bat links <dir> [--name session.md]` |
+| `note_rename` | `run.bat rename <dir> --from old.md --to new.md` |
 | `note_context` | `run.bat context <notes> --focus "question" --notes session.md --memory <memory>` |
 | `memory_add` | `run.bat memory-add <memory> --content "…" [--name decisions.md] [--tags a,b]` |
 | `memory_recall` | `run.bat memory-recall <memory> [--query "…"] [--limit 5] [--chars 2000]` |

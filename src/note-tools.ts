@@ -18,6 +18,7 @@ import {
 import type { NoteFile, Zone } from "./notes";
 import { linkReport, renderLinkReport } from "./links";
 import type { LinkReport } from "./links";
+import { renameNote } from "./rename";
 import { renderZoneMap, zoneMap, zoneStats } from "./stats";
 import type { ZoneMap } from "./stats";
 import { booleanOf, cwdOf, number, text, type ExecShape } from "./tool-util";
@@ -507,6 +508,67 @@ export const noteMapTool = defineTool({
       includeArchives: zone !== "memory",
     });
     return { zone, ...map };
+  },
+});
+
+export const noteRenameTool = defineTool({
+  name: "note_rename",
+  description:
+    "Rename or move a note inside a zone and rewrite every link that pointed at it, so the graph stays intact. Wikilinks keep their style (no extension), markdown links keep their extension, and anchors and |labels survive. dryRun reports the plan without moving anything; a name that already exists is refused rather than overwritten.",
+  parameters: {
+    from: { type: "string", description: "Current note name, e.g. session.md." },
+    to: { type: "string", description: "New name or nested path, e.g. log/session.md." },
+    dryRun: {
+      type: "boolean",
+      description: "Report what would change without renaming anything.",
+    },
+    zone: { type: "string", description: '"writing" (default) or "memory".' },
+    dir: { type: "string", description: "Optional directory override for the selected zone." },
+  },
+  output: {
+    schema: {
+      type: "object",
+      properties: {
+        zone: { type: "string" },
+        dir: { type: "string" },
+        from: { type: "string" },
+        to: { type: "string" },
+        path: { type: "string" },
+        moved: { type: "boolean" },
+        dryRun: { type: "boolean" },
+        rewritten: { type: "array", items: { type: "string" } },
+        links: { type: "number" },
+      },
+      additionalProperties: false,
+    },
+    render: (_args, value) => {
+      const v = value as {
+        from?: string;
+        to?: string;
+        dryRun?: boolean;
+        links?: number;
+        rewritten?: string[];
+      };
+      const verb = v.dryRun ? "Would rename" : "Renamed";
+      const notes = v.rewritten?.length ?? 0;
+      const links = v.links ?? 0;
+      const suffix = links > 0 ? `, ${links} link(s) in ${notes} note(s)` : ", no links to rewrite";
+      return [{ type: "text", text: `${verb} ${v.from ?? "?"} -> ${v.to ?? "?"}${suffix}` }];
+    },
+  },
+  async execute(args, exec) {
+    const { from, to, dryRun, zone: zoneValue, dir } = (args ?? {}) as Record<string, unknown>;
+    if (typeof from !== "string" || !from.trim()) {
+      throw new Error("A current note name is required.");
+    }
+    if (typeof to !== "string" || !to.trim()) throw new Error("A new note name is required.");
+    const zone = zoneArg(zoneValue, "writing");
+    const root = zoneDir(zone, cwdOf(exec as ExecShape | undefined), text(dir));
+    const result = await renameNote(root, from.trim(), to.trim(), {
+      dryRun: booleanOf(dryRun),
+      includeArchives: zone !== "memory",
+    });
+    return { zone, dir: result.path, ...result };
   },
 });
 

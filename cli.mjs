@@ -37,6 +37,7 @@ const COMMANDS = new Set([
   "mindmap",
   "links",
   "linkmap",
+  "rename",
   "export",
   "import",
   "context",
@@ -85,6 +86,8 @@ Commands (dir defaults to ./notes, or ./memory for memory-*):
   linkmap [dir] [--zone writing|memory] [--file <out.md>]
       The link graph as a Mermaid flowchart (notes are nodes, links are edges),
       printed as a fenced block, or written to --file.
+  rename [dir] --from <old> --to <new> [--dry-run] [--zone writing|memory]
+      Rename or move a note and rewrite every link that pointed at it.
   export <dir?> --file <bundle.json>
       Snapshot the whole folder (archives included) into one JSON file.
   import <dir?> --file <bundle.json> [--force]
@@ -117,7 +120,7 @@ Convenience: the file name may be typed right after the directory —
 Add --json to print the structured result instead of plain text.
 Content tips: quote multi-word values; use --file/- for Chinese or multiline.`;
 
-const BOOLEAN_FLAGS = new Set(["compact", "all", "json", "force", "help"]);
+const BOOLEAN_FLAGS = new Set(["compact", "all", "json", "force", "dry-run", "help"]);
 
 function parseArgs(tokens) {
   const positional = [];
@@ -379,6 +382,24 @@ const handlers = {
     return { text: `Wrote ${flags.file}` };
   },
 
+  async rename({ positional, flags }) {
+    const zone = zoneFlag(flags.zone);
+    const dir = zoneOf(zone, positional[0]);
+    const from = requireFlag(flags, "from", "current note name, e.g. session.md");
+    const to = requireFlag(flags, "to", "new note name, e.g. log/session.md");
+    const result = await api.renameNote(dir, from, to, {
+      dryRun: Boolean(flags["dry-run"]),
+      includeArchives: zone !== "memory",
+    });
+    if (flags.json) return { json: { zone, ...result } };
+    const verb = result.dryRun ? "Would rename" : "Renamed";
+    const suffix =
+      result.links > 0
+        ? `, ${result.links} link(s) in ${result.rewritten.length} note(s)`
+        : ", no links to rewrite";
+    return { text: `${verb} ${result.from} -> ${result.to}${suffix}` };
+  },
+
   async export({ positional, flags }) {
     const dir = zoneOf("writing", positional[0]);
     const file = requireFlag(flags, "file", "bundle to write, e.g. bank.json");
@@ -555,6 +576,7 @@ const USAGE_LINES = {
   mindmap: "mindmap [dir] [--chars N] [--zone writing|memory] [--file out.md]",
   links: "links [dir] [--name <note>] [--zone writing|memory]",
   linkmap: "linkmap [dir] [--zone writing|memory] [--file out.md]",
+  rename: "rename [dir] --from <old> --to <new> [--dry-run]",
   export: "export [dir] --file <bundle.json>",
   import: "import [dir] --file <bundle.json> [--force]",
   context: "context [dir] [--focus text] [--notes a.md,b.md] [--memory dir]",
