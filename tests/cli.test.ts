@@ -393,6 +393,7 @@ describe("cli.mjs end to end", () => {
     const failure = runCli(["recall", dir]);
     await expect(failure).rejects.toMatchObject({ code: 1 });
     await expect(failure).rejects.toThrow(/usage: recall/);
+    await expect(runCli(["recall", dir, "--name", "ghost.md"])).rejects.toThrow(/Note not found/);
     await fs.rm(dir, { recursive: true, force: true });
   });
 

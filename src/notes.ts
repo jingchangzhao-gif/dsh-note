@@ -225,6 +225,15 @@ async function listFilesRecursive(root: string): Promise<{ name: string; path: s
   return found;
 }
 
+/** Read a file, turning "missing" into a message a user can act on. */
+async function readNoteText(path: string, name: string): Promise<string> {
+  try {
+    return await fs.readFile(path, "utf8");
+  } catch {
+    throw new Error(`Note not found: ${name}`);
+  }
+}
+
 async function readParsed(path: string): Promise<ParsedFrontMatter> {
   const raw = await fs.readFile(path, "utf8");
   return parseFrontMatter(raw);
@@ -268,7 +277,7 @@ export async function listNotes(zoneDir: string): Promise<NoteFile[]> {
 /** Read a note's full raw text (front matter included), v0.1 semantics. */
 export async function readNote(zoneDir: string, name: string, tail?: number): Promise<string> {
   const path = notePath(zoneDir, name);
-  const raw = await fs.readFile(path, "utf8");
+  const raw = await readNoteText(path, name);
   if (tail == null) return raw;
   return tailText(raw, tail);
 }
@@ -276,7 +285,7 @@ export async function readNote(zoneDir: string, name: string, tail?: number): Pr
 /** Read a note split into meta + body (raw text included). */
 export async function readNoteFull(zoneDir: string, name: string): Promise<NoteContent> {
   const path = notePath(zoneDir, name);
-  const raw = await fs.readFile(path, "utf8");
+  const raw = await readNoteText(path, name);
   const fm = parseFrontMatter(raw);
   return {
     name: zoneRelativeName(zoneDir, path),
@@ -371,7 +380,7 @@ export async function editNote(zoneDir: string, name: string, ops: EditOp[]): Pr
     if (!op.old) throw new Error("An edit operation requires a non-empty old text.");
   }
   const path = notePath(zoneDir, name);
-  const fm = await readParsed(path);
+  const fm = parseFrontMatter(await readNoteText(path, name));
   let body = fm.body;
   let edits = 0;
   for (const op of ops) {

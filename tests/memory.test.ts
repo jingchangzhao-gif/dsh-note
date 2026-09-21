@@ -66,6 +66,17 @@ describe("memory bank", () => {
     await fs.rm(dir, { recursive: true, force: true });
   });
 
+  it("separates one file's section from the next with a blank line", async () => {
+    const dir = await makeDir();
+    await seed(dir);
+    const all = await recallMemory(dir, { limit: 10, chars: 100_000 });
+    expect(all.files).toBe(2);
+    // Without the blank line the next file's header reads as part of the last
+    // entry, and the model has to guess where the section ended.
+    expect(all.content).toMatch(/\n\n# /);
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
   it("recall filters by query, tags, type, name and dates", async () => {
     const dir = await makeDir();
     await seed(dir);

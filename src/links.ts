@@ -28,6 +28,24 @@ const MARKDOWN_PARTS_RE = /(\[[^\]]*\]\()(<[^>]*>|[^)\s]+)(\s+"[^"]*")?(\))/g;
 /** Assets, not notes: an image or media link is not an edge in the graph. */
 const ASSET_RE = /\.(?:png|jpe?g|gif|svg|webp|avif|bmp|ico|pdf|mp3|mp4|mov|webm|wav|ogg)$/i;
 
+/**
+ * Ranges of inline code on one line (\`…\`, and runs of backticks). A link in a
+ * code span is documentation, not a link — Obsidian does not resolve it either.
+ */
+function codeSpans(line: string): [number, number][] {
+  const spans: [number, number][] = [];
+  for (const match of line.matchAll(/(`+)[\s\S]*?\1/g)) {
+    if (match.index === undefined) continue;
+    spans.push([match.index, match.index + match[0].length]);
+  }
+  return spans;
+}
+
+/** True when an offset falls inside one of the code spans. */
+function insideCode(spans: readonly [number, number][], offset: number): boolean {
+  return spans.some(([start, end]) => offset >= start && offset < end);
+}
+
 /** Strip the angle brackets a markdown target may be wrapped in. */
 function cleanTarget(raw: string): string {
   return raw.replace(/^</, "").replace(/>$/, "").trim();
@@ -51,13 +69,16 @@ export function extractLinks(body: string): string[] {
       continue;
     }
     if (fenced) continue;
+    const spans = codeSpans(line);
     for (const match of line.matchAll(WIKILINK_RE)) {
+      if (match.index === undefined || insideCode(spans, match.index)) continue;
       const target = cleanTarget(match[1].split("#")[0]);
       if (target && isNoteTarget(target)) targets.push(target);
     }
     for (const match of line.matchAll(MARKDOWN_LINK_RE)) {
+      if (match.index === undefined || insideCode(spans, match.index)) continue;
       // `![alt](target)` is an image or file embed, not a link between notes.
-      if (match.index !== undefined && line[match.index - 1] === "!") continue;
+      if (line[match.index - 1] === "!") continue;
       const target = cleanTarget(match[1].split("#")[0]);
       if (isNoteTarget(target)) targets.push(target);
     }
@@ -93,9 +114,17 @@ export function rewriteLinkTargets(
       return line;
     }
     if (fenced) return line;
+    const spans = codeSpans(line);
     let out = line.replace(
       WIKILINK_PARTS_RE,
-      (match: string, target: string, anchor?: string, label?: string) => {
+      (
+        match: string,
+        target: string,
+        anchor: string | undefined,
+        label: string | undefined,
+        offset: number,
+      ) => {
+        if (insideCode(spans, offset)) return match;
         const next = rewrite(cleanTarget(target), "wiki");
         if (next === undefined) return match;
         count += 1;
@@ -113,6 +142,7 @@ export function rewriteLinkTargets(
         offset: number,
         whole: string,
       ) => {
+        if (insideCode(spans, offset)) return match; // a code span is documentation
         if (offset > 0 && whole[offset - 1] === "!") return match; // image or file embed
         const bare = cleanTarget(rawTarget);
         const hash = bare.indexOf("#");

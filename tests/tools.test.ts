@@ -276,13 +276,18 @@ describe("note tools", () => {
     await writeNote(join(root, "notes"), "hub.md", "See [a](a.md).");
     await writeNote(join(root, "notes"), "a.md", "Back to [[hub]].");
     await writeNote(join(root, "notes"), "b.md", "alone");
-    const linked = await run<{ links: number; orphans: string[] }>(noteMapTool, root, {
-      zone: "writing",
-    });
-    expect(linked).toMatchObject({ links: 2, orphans: ["b.md"] });
+    await writeNote(join(root, "notes"), "p.md", "See [q](q.md).");
+    await writeNote(join(root, "notes"), "q.md", "Back to [[p]].");
+    const linked = await run<{ links: number; orphans: string[]; islands: string[][] }>(
+      noteMapTool,
+      root,
+      { zone: "writing" },
+    );
+    expect(linked).toMatchObject({ links: 4, orphans: ["b.md"], islands: [["p.md", "q.md"]] });
     const linkedText = renderText(noteMapTool, { zone: "writing" }, linked);
-    expect(linkedText).toContain("links: 2");
+    expect(linkedText).toContain("links: 4");
     expect(linkedText).toContain("orphans: b.md");
+    expect(linkedText).toContain("islands: p.md+q.md");
     await fs.rm(root, { recursive: true, force: true });
   });
 

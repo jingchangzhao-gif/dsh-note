@@ -287,7 +287,9 @@ export async function recallMemory(
     // The budget is the size of the reply, so count the section header and the
     // "\n" that joins this section to the previous one — not just entry bodies.
     const headerChars = header.length + 1;
-    const sectionSep = sections.length > 0 ? 1 : 0;
+    // A blank line between sections: without it the next file's header reads
+    // as part of the previous entry, which the model then has to untangle.
+    const sectionSep = sections.length > 0 ? 2 : 0;
     let bodyText = "";
     let hitLimit = false;
     for (const entry of matched) {
@@ -312,7 +314,7 @@ export async function recallMemory(
     // Limit reached and a further entry existed: nothing later can be shown.
     if (hitLimit) break;
   }
-  return { content: sections.join("\n"), files, truncated };
+  return { content: sections.join("\n\n"), files, truncated };
 }
 
 /** Merge `patch` fields into a memory file's front matter. */

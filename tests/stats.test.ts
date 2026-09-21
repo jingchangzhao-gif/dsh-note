@@ -144,6 +144,13 @@ describe("zone map", () => {
     expect(text).toContain("links: 2 (1 broken)");
     expect(text).toContain("orphans: b.md");
 
+    // A second, unconnected pair is an island.
+    await writeNote(dir, "p.md", "See [q](q.md).");
+    await writeNote(dir, "q.md", "Back to [[p]].");
+    const clustered = await zoneMap(dir);
+    expect(clustered.islands).toEqual([["p.md", "q.md"]]);
+    expect(renderZoneMap(clustered, "writing")).toContain("islands: p.md+q.md");
+
     const quiet = await makeDir();
     await writeNote(quiet, "x.md", "no links");
     expect(renderZoneMap(await zoneMap(quiet), "memory")).not.toContain("links:");
@@ -203,6 +210,7 @@ describe("zone map", () => {
         links: 0,
         broken: [],
         orphans: [],
+        islands: [],
       },
       "writing",
     );

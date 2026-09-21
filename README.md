@@ -233,8 +233,9 @@ can never shadow a real file name. A name with two equally good candidates
 stays unresolved rather than guessing.
 
 Not links between notes, so ignored: URLs, in-page anchors, absolute paths,
-image and media targets, `![alt](…)` embeds, links inside fenced code blocks,
-and a note linking to itself (which would only hide that nothing reaches it).
+image and media targets, `![alt](…)` embeds, links inside fenced code blocks or
+inline `` `code` `` spans, and a note linking to itself (which would only hide
+that nothing reaches it).
 
 ### `note_rename`
 
