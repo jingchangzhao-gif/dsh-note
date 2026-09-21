@@ -65,6 +65,18 @@ describe("link extraction", () => {
     expect(resolveLinkTarget("today", oneDeep)).toBe("today.md"); // shortest path wins
   });
 
+  it("ignores links inside inline code, which is documentation not a link", () => {
+    expect(
+      extractLinks("real [[hub]] and code `[[missing]]` and [x](ghost.md) plus `[y](ghost.md)`."),
+    ).toEqual(["hub", "ghost.md"]);
+
+    const { body, count } = rewriteLinkTargets("`[[old]]` and [[old]]", (target, form) =>
+      target === "old" ? (form === "wiki" ? "new" : "new.md") : undefined,
+    );
+    expect(count).toBe(1);
+    expect(body).toBe("`[[old]]` and [[new]]");
+  });
+
   it("rewrites link targets but never inside fenced code", () => {
     const body = ["See [[old]] and [x](old.md).", "```", "[[old]] and [x](old.md)", "```"].join(
       "\n",

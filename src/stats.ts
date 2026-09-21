@@ -82,6 +82,8 @@ export interface ZoneMap {
   broken: string[];
   /** notes with no links in or out (empty when the zone has none at all) */
   orphans: string[];
+  /** linked clusters cut off from the biggest one, biggest first */
+  islands: string[][];
 }
 
 export interface MapOptions {
@@ -189,11 +191,14 @@ export async function zoneMap(zoneDir: string, options: MapOptions = {}): Promis
     links: graph.links,
     broken: graph.broken,
     orphans: graph.orphans,
+    islands: graph.islands,
   };
 }
 
 /** Orphan names a rendered map lists before it starts counting. */
 const ORPHAN_NAMES_SHOWN = 5;
+/** Island clusters a rendered map lists before it starts counting. */
+const ISLAND_CLUSTERS_SHOWN = 2;
 
 /** Render a map the same way for the tool and the CLI. */
 export function renderZoneMap(map: ZoneMap, label = "zone"): string {
@@ -212,6 +217,14 @@ export function renderZoneMap(map: ZoneMap, label = "zone"): string {
       const shown = map.orphans.slice(0, ORPHAN_NAMES_SHOWN).join(", ");
       const rest = map.orphans.length - ORPHAN_NAMES_SHOWN;
       lines.push(`orphans: ${rest > 0 ? `${shown} (+${rest})` : shown}`);
+    }
+    if (map.islands.length > 0) {
+      const shown = map.islands
+        .slice(0, ISLAND_CLUSTERS_SHOWN)
+        .map((group) => group.join("+"))
+        .join(" | ");
+      const rest = map.islands.length - ISLAND_CLUSTERS_SHOWN;
+      lines.push(`islands: ${rest > 0 ? `${shown} (+${rest})` : shown}`);
     }
   }
   return lines.join("\n");

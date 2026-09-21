@@ -69,6 +69,16 @@ describe("notes memory operations", () => {
     await fs.rm(root, { recursive: true, force: true });
   });
 
+  it("says a note is missing instead of leaking ENOENT", async () => {
+    const dir = await makeDir();
+    await expect(readNote(dir, "ghost.md")).rejects.toThrow(/Note not found: ghost\.md/);
+    await expect(readNoteFull(dir, "ghost.md")).rejects.toThrow(/Note not found/);
+    await expect(editNote(dir, "ghost.md", [{ old: "a", new: "b" }])).rejects.toThrow(
+      /Note not found/,
+    );
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
   it("deleteNote removes a file and reports false when absent", async () => {
     const dir = await makeDir();
     await appendNote(dir, "gone.md", "hi");

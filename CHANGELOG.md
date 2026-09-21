@@ -6,6 +6,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- Links inside inline `` `code` `` spans are not links: a `[[note]]` shown as an
+  example no longer counts as a broken link, and a rename no longer rewrites it.
+- `memory_recall` puts a blank line between one file's section and the next;
+  without it the next file's header read as part of the previous entry.
+- `note_map` carries `islands` too, so the agent's outline sees the same
+  clusters `note_links` reports (0.4.0's changelog said so; now it is true).
+- A missing note says `Note not found: <name>` instead of leaking
+  `ENOENT: no such file or directory, open '…'` from `recall` and `edit`.
+
 ## [0.4.0] - 2026-09-20
 
 The mind-map and link layer: an outline the agent can read cheaply, two Mermaid
