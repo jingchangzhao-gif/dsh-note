@@ -6,6 +6,28 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- `tests/compatibility.test.ts` guards the declared harness range: it must
+  accept every dsh version dsh-note claims and the `@deepseek-ai/dsh-tools` the
+  suite runs against, and must refuse 0.2 and later.
+
+### Changed
+
+- **Harness compatibility.** `@deepseek-ai/dsh-tools` is a peer _range_
+  (`>=0.1.0-rc.8 <0.2.0-0`) instead of the exact pin `=0.1.0-rc.8`, and the
+  suite develops against the current runtime (`@deepseek-ai/dsh-tools`
+  `0.1.7-rc.2`, `@deepseek-ai/cordis` `4.0.4`). dsh compares a plugin's
+  `@deepseek-ai/dsh*` peers against the _running_ runtime, prereleases
+  included, and refuses to install it otherwise — so the pin made dsh-note
+  uninstallable on every runtime but 0.1.0-rc.8 (`Plugin dsh-note@0.4.0 is
+incompatible with dsh 0.1.7-rc.2`). The surface dsh-note uses is unchanged
+  across the line: `defineTool` and its schema DSL, `ctx.tools.register`, and
+  `exec.agent.session.header.cwd`.
+- README: installation uses a git specifier (`dsh-note` is not published on
+  npm), the desktop profile is documented as plugin-manager-only, and the
+  declared peers are listed with the versions they were verified against.
+
 ### Fixed
 
 - Links inside inline `` `code` `` spans are not links: a `[[note]]` shown as an

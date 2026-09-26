@@ -117,9 +117,33 @@ step. See [`docs/workflows.md`](docs/workflows.md) for ready-to-use recipes.
 
 ## Installation
 
+The package ships from this repository rather than npm, so install it by git
+specifier:
+
 ```sh
-dsh plugin --profile web add dsh-note
+# CLI profiles (web, tui, …) — the CLI forwards the specifier to pnpm
+dsh plugin --profile web add github:jingchangzhao-gif/dsh-note
 ```
+
+The desktop app's profile is managed by the app itself: add
+`github:jingchangzhao-gif/dsh-note` from the GUI's plugin manager.
+`dsh plugin --profile desktop …` is refused — the CLI does not manage that
+profile.
+
+### Harness compatibility
+
+dsh refuses to load a plugin whose `@deepseek-ai/dsh*` peer range does not
+satisfy the running runtime, comparing the runtime version with prereleases
+included, so the declared peers are ranges over the 0.1 line:
+
+| Peer                     | Range                   | Used for                                                            |
+| ------------------------ | ----------------------- | ------------------------------------------------------------------- |
+| `@deepseek-ai/dsh-tools` | `>=0.1.0-rc.8 <0.2.0-0` | `defineTool`, `ctx.tools.register`, `exec.agent.session.header.cwd` |
+| `@deepseek-ai/cordis`    | `^4.0.1`                | the plugin entry (`name` / `inject` / `apply`)                      |
+
+Verified against dsh 0.1.0-rc.8, 0.1.5-rc.3 and 0.1.7-rc.2. `pnpm test` includes
+`tests/compatibility.test.ts`, which fails if the range stops accepting the
+`@deepseek-ai/dsh-tools` the suite installs.
 
 ## Tool reference
 
@@ -388,7 +412,8 @@ Notes:
   `--force` is passed, so a restore can never silently clobber newer notes.
   These two are CLI-only — the agent tools have no bundle equivalent.
 - The same package also works as a dsh plugin inside the DeepSeek Harness
-  GUI (`dsh plugin --profile web add dsh-note`); its 17 tools cover the note
+  GUI (`dsh plugin --profile web add github:jingchangzhao-gif/dsh-note`, or the
+  GUI's plugin manager for the desktop profile); its 17 tools cover the note
   and memory commands above.
 
 ## Development
