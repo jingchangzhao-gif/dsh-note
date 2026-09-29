@@ -8,7 +8,7 @@
 import { promises as fs } from "node:fs";
 import type { Dirent } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
-import { nowIso, parseFrontMatter, withFrontMatter } from "./frontmatter";
+import { FRONT_MATTER_MARK, nowIso, parseFrontMatter, withFrontMatter } from "./frontmatter";
 import type { FrontMeta, ParsedFrontMatter } from "./frontmatter";
 
 export type Zone = "writing" | "memory";
@@ -241,7 +241,9 @@ async function readParsed(path: string): Promise<ParsedFrontMatter> {
 
 async function describeNote(relName: string, path: string): Promise<NoteFile> {
   const head = await readHead(path);
-  const startsWithMark = /^---(\r?\n)/.test(head);
+  // The same opening-line test parseFrontMatter applies (a trimmed `---`), so a
+  // listing never disagrees with a read about whether a note has front matter.
+  const startsWithMark = head.split(/\r?\n/, 1)[0].trim() === FRONT_MATTER_MARK;
   if (!startsWithMark) {
     return { name: relName, path, title: firstHeading(head), meta: {} };
   }

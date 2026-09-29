@@ -61,6 +61,10 @@ incompatible with dsh 0.1.7-rc.2`). The surface dsh-note uses is unchanged
   clusters `note_links` reports (0.4.0's changelog said so; now it is true).
 - A missing note says `Note not found: <name>` instead of leaking
   `ENOENT: no such file or directory, open '…'` from `recall` and `edit`.
+- `note_list` dropped the title, tags and type of a note whose opening `---`
+  line carried trailing spaces, although `note_recall` read that front matter
+  fine: the listing tested the mark with a stricter pattern than the parser.
+  Both now apply the same test.
 
 ## [0.4.0] - 2026-09-20
 
