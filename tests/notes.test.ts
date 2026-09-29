@@ -79,6 +79,16 @@ describe("notes memory operations", () => {
     await fs.rm(dir, { recursive: true, force: true });
   });
 
+  it("suggests the note that was probably meant when one is missing", async () => {
+    const dir = await makeDir();
+    await writeNote(dir, "session.md", "body");
+    await expect(readNote(dir, "sesion.md")).rejects.toThrow(
+      /^Note not found: sesion\.md \(did you mean session\.md\?\)$/,
+    );
+    await expect(readNote(dir, "zebra")).rejects.toThrow(/^Note not found: zebra$/);
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
   it("deleteNote removes a file and reports false when absent", async () => {
     const dir = await makeDir();
     await appendNote(dir, "gone.md", "hi");

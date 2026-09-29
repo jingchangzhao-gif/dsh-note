@@ -24,11 +24,13 @@ import {
   ensureDir,
   isArchive,
   listNotes,
+  noteNames,
   notePath,
   tokenize,
   writeTextFile,
   zoneRelativeName,
 } from "./notes";
+import { notFoundHint } from "./suggest";
 
 export const DEFAULT_MEMORY_NOTE = "memory.md";
 
@@ -118,11 +120,12 @@ function parseDateOrThrow(value: string | undefined, label: string): number | un
 }
 
 /** Read a topic file, turning "missing" into a message a user can act on. */
-async function readMemoryText(path: string, name: string): Promise<string> {
+async function readMemoryText(zoneDir: string, path: string, name: string): Promise<string> {
   try {
     return await fs.readFile(path, "utf8");
   } catch {
-    throw new Error(`Memory note not found: ${name}`);
+    const hint = notFoundHint(name, await noteNames(zoneDir));
+    throw new Error(`Memory note not found: ${name}${hint}`);
   }
 }
 
@@ -334,7 +337,7 @@ export async function updateMemoryMeta(
   patch: FrontMeta,
 ): Promise<{ name: string; changed: boolean; meta: FrontMeta }> {
   const path = notePath(zoneDir, name);
-  const fm = parseFrontMatter(await readMemoryText(path, name));
+  const fm = parseFrontMatter(await readMemoryText(zoneDir, path, name));
   const next: FrontMeta = { ...fm.meta, ...patch, updated: nowIso() };
   // `updated` always moves, so compare the merged fields only: reporting
   // changed:true for a no-op merge is what makes a caller re-fetch needlessly.
@@ -355,7 +358,7 @@ export async function compactMemory(
 ): Promise<CompactResult> {
   const name = options.name?.trim() || DEFAULT_MEMORY_NOTE;
   const path = notePath(zoneDir, name);
-  const fm = parseFrontMatter(await readMemoryText(path, name));
+  const fm = parseFrontMatter(await readMemoryText(zoneDir, path, name));
   const parsed = parseMemory(fm.body);
   let removed: MemoryEntry[] = [];
   if (options.olderThan !== undefined) {
@@ -415,7 +418,7 @@ export async function removeMemoryEntries(
   const needle = match.trim();
   if (!needle) throw new Error("A match text is required.");
   const path = notePath(zoneDir, name);
-  const fm = parseFrontMatter(await readMemoryText(path, name));
+  const fm = parseFrontMatter(await readMemoryText(zoneDir, path, name));
   const parsed = parseMemory(fm.body);
   const keptEntries = parsed.entries.filter((entry) => !entry.text.includes(needle));
   const removed = parsed.entries.length - keptEntries.length;

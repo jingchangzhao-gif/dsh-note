@@ -20,6 +20,7 @@ import {
   writeTextFile,
   zoneRelativeName,
 } from "./notes";
+import { notFoundHint } from "./suggest";
 
 export interface RenameOptions {
   /** report the plan without touching any file */
@@ -75,7 +76,8 @@ export async function renameNote(
   const names = new Set(notes.map((note) => note.name));
   const aliases = uniqueAliases(inputs);
   const oldName = resolveLinkTarget(from, names, aliases);
-  if (!oldName) throw new Error(`Note not found in this zone: ${from}`);
+  if (!oldName)
+    throw new Error(`Note not found in this zone: ${from}${notFoundHint(from, [...names])}`);
 
   const newPath = notePath(zoneDir, to); // validates the name and blocks escapes
   const newName = zoneRelativeName(zoneDir, newPath);
