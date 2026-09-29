@@ -78,6 +78,13 @@ incompatible with dsh 0.1.7-rc.2`). The surface dsh-note uses is unchanged
   `unknown flag --…` and the usage line, and `memory-compact` refuses
   `--keep` together with `--older-than` (it used to drop `--keep`). The old
   `search --all` is still accepted.
+- Front matter written as a YAML list — how Obsidian and basic-memory store
+  `tags` and `aliases` — was unreadable, and the next write destroyed it:
+  appending to a note with `tags:` followed by `  - coffee` lines rewrote it as
+  an empty `tags: ` and dropped every item. Tag filters and alias links missed
+  such notes meanwhile, and `tags: [coffee, brewing]` read as one tag. Block
+  lists (any key) and flow lists (`tags`, `aliases`, `alias`) now read as the
+  usual comma list and are written back in their original style.
 
 ## [0.4.0] - 2026-09-20
 

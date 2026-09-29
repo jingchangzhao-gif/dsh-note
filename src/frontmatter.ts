@@ -3,14 +3,21 @@
 // Format: an optional leading block delimited by `---` lines, holding
 // `key: value` lines. Values are plain strings; list-like fields (tags) use
 // comma separation. Everything after the closing `---` is the note body.
+// YAML lists — how Obsidian and basic-memory write tags and aliases — are read
+// into the same comma value, and written back in the style they came in.
 // Parsing is local file work — free, no model involved.
 
 export type FrontMeta = Record<string, string>;
+
+/** Keys whose value was a YAML list, and the style to write it back in. */
+export type FrontLists = Record<string, "block" | "flow">;
 
 export interface ParsedFrontMatter {
   /** true when the text began with a well-formed `---` block */
   hasFrontMatter: boolean;
   meta: FrontMeta;
+  /** keys read from a YAML list (their meta value is the comma-joined items) */
+  lists: FrontLists;
   /** note text below the front matter */
   body: string;
 }
@@ -18,39 +25,89 @@ export interface ParsedFrontMatter {
 export const FRONT_MATTER_MARK = "---";
 
 const KEY_VALUE_RE = /^([A-Za-z0-9_-]+):\s*(.*)$/;
+// `  - item` (or `- item` at column 0) under a key whose value was empty.
+const BLOCK_ITEM_RE = /^\s*-\s+(.*)$/;
+// `[a, b]` is a list in YAML, but also plausible literal text (`title: [WIP]`),
+// so the flow form is read as a list only where dsh-note itself reads one.
+const FLOW_LIST_KEYS = new Set(["tags", "aliases", "alias"]);
+const FLOW_LIST_RE = /^\[([^[\]]*)\]$/;
+
+/**
+ * Quote an item that YAML would read differently bare: `#x` is a comment,
+ * `a: b` a map, and a leading indicator (`[`, `*`, `&`, quotes …) changes type.
+ */
+function yamlItem(item: string): string {
+  return /^[-?:,[\]{}#&*!|>'"%@`]|: | #|^\s|\s$|^$/.test(item) ? JSON.stringify(item) : item;
+}
+
+/** One list item without the quotes YAML allows around it. */
+function listItem(raw: string): string {
+  const item = raw.trim();
+  const quoted = /^(["'])(.*)\1$/.exec(item);
+  return quoted ? quoted[2] : item;
+}
 
 /** Parse the leading front matter of a file's text, if present. */
 export function parseFrontMatter(text: string): ParsedFrontMatter {
   const lines = text.split(/\r?\n/);
   if (lines[0]?.trim() !== FRONT_MATTER_MARK) {
-    return { hasFrontMatter: false, meta: {}, body: text };
+    return { hasFrontMatter: false, meta: {}, lists: {}, body: text };
   }
   const meta: FrontMeta = {};
+  const lists: FrontLists = {};
   let close = -1;
   let keys = 0;
+  // The key a block list's items belong to: one whose value was left empty.
+  let listKey: string | undefined;
+  const items: string[] = [];
+  const endList = () => {
+    if (listKey !== undefined && items.length > 0) {
+      meta[listKey] = items.join(", ");
+      lists[listKey] = "block";
+    }
+    listKey = undefined;
+    items.length = 0;
+  };
   for (let i = 1; i < lines.length; i += 1) {
     const line = lines[i];
     if (line.trim() === FRONT_MATTER_MARK) {
       close = i;
       break;
     }
+    const item = listKey !== undefined ? BLOCK_ITEM_RE.exec(line) : null;
+    if (item) {
+      items.push(listItem(item[1]));
+      continue;
+    }
+    endList();
     const match = KEY_VALUE_RE.exec(line);
     if (match) {
-      meta[match[1]] = unquote(match[2].trim());
+      const [, key, rawValue] = match;
+      const value = rawValue.trim();
+      const flow = FLOW_LIST_KEYS.has(key) ? FLOW_LIST_RE.exec(value) : null;
+      if (flow) {
+        meta[key] = flow[1].split(",").map(listItem).filter(Boolean).join(", ");
+        lists[key] = "flow";
+      } else {
+        meta[key] = unquote(value);
+        if (value === "") listKey = key;
+      }
       keys += 1;
     }
     // malformed lines inside the block are skipped
   }
+  endList();
   if (close < 0 || keys === 0) {
     // An opening mark without a closing one, or a block holding no `key: value`
     // line at all (a leading horizontal rule, a pasted quotation), is note text
     // — not front matter. Reading it as meta silently swallowed the block on
     // the next write, so this guard is what keeps that content alive.
-    return { hasFrontMatter: false, meta: {}, body: text };
+    return { hasFrontMatter: false, meta: {}, lists: {}, body: text };
   }
   return {
     hasFrontMatter: true,
     meta,
+    lists,
     body: lines
       .slice(close + 1)
       .join("\n")
@@ -78,13 +135,21 @@ function unquote(value: string): string {
   }
 }
 
-/** Serialize meta into a front matter block ("" when empty). Ends with "\n". */
-export function renderFrontMatter(meta: FrontMeta): string {
+/**
+ * Serialize meta into a front matter block ("" when empty). Ends with "\n".
+ * Keys named in `lists` are written as a YAML list in their original style.
+ */
+export function renderFrontMatter(meta: FrontMeta, lists: FrontLists = {}): string {
   const keys = Object.keys(meta);
   if (keys.length === 0) return "";
   const block = keys
     .map((key) => {
       const value = meta[key];
+      const items = lists[key] ? parseTagsList(value) : [];
+      if (items.length > 0 && lists[key] === "block") {
+        return [`${key}:`, ...items.map((item) => `  - ${yamlItem(item)}`)].join("\n");
+      }
+      if (items.length > 0) return `${key}: [${items.map(yamlItem).join(", ")}]`;
       return `${key}: ${needsQuoting(value) ? JSON.stringify(value) : value}`;
     })
     .join("\n");
@@ -96,8 +161,8 @@ export function renderFrontMatter(meta: FrontMeta): string {
  * Leading blank lines of the body are dropped and a single trailing newline
  * is guaranteed, so round-tripping through parseFrontMatter is stable.
  */
-export function withFrontMatter(meta: FrontMeta, body: string): string {
-  const head = renderFrontMatter(meta);
+export function withFrontMatter(meta: FrontMeta, body: string, lists: FrontLists = {}): string {
+  const head = renderFrontMatter(meta, lists);
   if (head === "") return body.replace(/\s+$/, "");
   const content = body.replace(/^\n+/, "").replace(/\s+$/, "");
   return content === "" ? head : `${head}${content}\n`;

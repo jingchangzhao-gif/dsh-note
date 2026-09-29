@@ -370,6 +370,24 @@ describe("memory bank", () => {
     await fs.rm(dir, { recursive: true, force: true });
   });
 
+  it("keeps an Obsidian-style tag list through a write, and filters on it", async () => {
+    const dir = await makeDir();
+    const path = join(dir, "coffee.md");
+    await fs.writeFile(
+      path,
+      "---\ntitle: Coffee\ntags:\n  - coffee\n  - brewing\naliases:\n  - Joe\n---\n" +
+        "## 2024-01-01T00:00:00.000Z\n\npour over is clearer\n",
+    );
+    // Appending used to rewrite this as `tags: ` and `aliases: `, dropping every item.
+    await addMemoryEntry(dir, "205F water", { name: "coffee.md" });
+    const raw = await fs.readFile(path, "utf8");
+    expect(raw).toContain("tags:\n  - coffee\n  - brewing\n");
+    expect(raw).toContain("aliases:\n  - Joe\n");
+    const recalled = await recallMemory(dir, { tags: "brewing" });
+    expect(recalled.content).toContain("205F water");
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
   it("applies tags/type to a memory file that already exists", async () => {
     const dir = await makeDir();
     await addMemoryEntry(dir, "first entry", { name: "e.md" });

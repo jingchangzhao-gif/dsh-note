@@ -193,7 +193,7 @@ export async function addMemoryEntry(
   } catch {
     existed = false; // new topic file
   }
-  const fm = existed ? parseFrontMatter(raw) : { hasFrontMatter: false, meta: {}, body: "" };
+  const fm = existed ? parseFrontMatter(raw) : parseFrontMatter("");
   const stem = basename(path).replace(/\.(?:md|markdown|txt)$/i, "");
   // A brand-new topic file gets a title and the memory type; a hand-written
   // file keeps whatever it had (nothing is invented for it).
@@ -208,7 +208,7 @@ export async function addMemoryEntry(
   const previous = fm.hasFrontMatter ? fm.body : raw;
   const nextBody = previous.trim() ? `${previous.trimEnd()}\n\n${block}` : block;
   await ensureDir(dirname(path));
-  await writeTextFile(path, withFrontMatter(meta, nextBody));
+  await writeTextFile(path, withFrontMatter(meta, nextBody, fm.lists));
   return { name, path };
 }
 
@@ -339,7 +339,7 @@ export async function updateMemoryMeta(
   // `updated` always moves, so compare the merged fields only: reporting
   // changed:true for a no-op merge is what makes a caller re-fetch needlessly.
   const changed = Object.entries(patch).some(([key, value]) => fm.meta[key] !== value);
-  await writeTextFile(path, withFrontMatter(next, fm.body));
+  await writeTextFile(path, withFrontMatter(next, fm.body, fm.lists));
   return { name: basename(path), changed, meta: next };
 }
 
@@ -399,10 +399,10 @@ export async function compactMemory(
   const removedText = removed.map((entry) => entry.text).join("\n\n");
   const archiveBody =
     archiveFm.body.length > 0 ? `${archiveFm.body.trimEnd()}\n\n${removedText}` : removedText;
-  await writeTextFile(archivePath, withFrontMatter(archiveMeta, archiveBody));
+  await writeTextFile(archivePath, withFrontMatter(archiveMeta, archiveBody, archiveFm.lists));
   const keptText = keptEntries.map((entry) => entry.text).join("\n\n");
   const body = [parsed.preamble, keptText].filter((part) => part.length > 0).join("\n\n");
-  await writeTextFile(path, withFrontMatter({ ...fm.meta, updated: nowIso() }, body));
+  await writeTextFile(path, withFrontMatter({ ...fm.meta, updated: nowIso() }, body, fm.lists));
   return { name, path, kept: keptEntries.length, archived: removed.length, archive };
 }
 
@@ -424,6 +424,6 @@ export async function removeMemoryEntries(
   const body = [parsed.preamble, keptEntries.map((entry) => entry.text).join("\n\n")]
     .filter((part) => part.length > 0)
     .join("\n\n");
-  await writeTextFile(path, withFrontMatter(meta, body));
+  await writeTextFile(path, withFrontMatter(meta, body, fm.lists));
   return { name: basename(path), removed };
 }

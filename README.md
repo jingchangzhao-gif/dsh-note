@@ -59,6 +59,10 @@ decided: use merge commits on paired PRs
   note answers to, used when resolving links (see [`note_links`](#note_links)).
 - `type: archive` marks compaction archives, which recalls/search skip.
 - Unknown keys are preserved on rewrite; values are plain `key: value` lines.
+- YAML lists work too, the way Obsidian and basic-memory write tags and
+  aliases: a block list (`tags:` then `  - coffee` lines) under any key, and the
+  flow form (`tags: [coffee, brewing]`) for `tags`/`aliases`/`alias`. They read
+  as the same comma list and are written back in the style they came in.
 - A leading `---` block is front matter only when it holds at least one
   `key: value` line. A note that opens with a `---` rule keeps it as body text
   instead of having the block read (and then deleted) as metadata.

@@ -318,7 +318,7 @@ export async function appendNote(
   const nextBody = base ? `${base.trimEnd()}\n\n---\n\n${content.trim()}` : content.trim();
   if (fm?.hasFrontMatter) {
     const meta = { ...fm.meta, updated: nowIso() };
-    await writeTextFile(path, withFrontMatter(meta, nextBody));
+    await writeTextFile(path, withFrontMatter(meta, nextBody, fm.lists));
   } else {
     await writeTextFile(path, `${nextBody.trimEnd()}\n`);
   }
@@ -358,7 +358,7 @@ export async function writeNote(
     const meta: FrontMeta = { ...base, ...patch };
     meta.updated = nowIso();
     if (!meta.created) meta.created = nowIso();
-    await writeTextFile(path, withFrontMatter(meta, body));
+    await writeTextFile(path, withFrontMatter(meta, body, existing?.lists));
     return { name: zoneRelativeName(zoneDir, path), path, created: !existing, meta };
   }
   await writeTextFile(path, `${body.trimEnd()}\n`);
@@ -403,7 +403,7 @@ export async function editNote(zoneDir: string, name: string, ops: EditOp[]): Pr
     const meta = { ...fm.meta };
     if (fm.hasFrontMatter || Object.keys(meta).length > 0) {
       meta.updated = nowIso();
-      await writeTextFile(path, withFrontMatter(meta, body));
+      await writeTextFile(path, withFrontMatter(meta, body, fm.lists));
     } else {
       await writeTextFile(path, `${body.trimEnd()}\n`);
     }
