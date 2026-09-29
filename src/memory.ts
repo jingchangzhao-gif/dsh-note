@@ -27,6 +27,7 @@ import {
   notePath,
   tokenize,
   writeTextFile,
+  zoneRelativeName,
 } from "./notes";
 
 export const DEFAULT_MEMORY_NOTE = "memory.md";
@@ -368,8 +369,11 @@ export async function compactMemory(
     return { name, path, kept: parsed.entries.length, archived: 0, archive: "" };
   }
   const keptEntries = parsed.entries.filter((entry) => !removed.includes(entry));
-  const stem = basename(path).replace(/\.(?:md|markdown|txt)$/i, "");
-  const archive = `${stem}${ARCHIVE_MARK}md`;
+  // The archive sits beside its topic: a nested `a/decisions.md` archives into
+  // `a/decisions.archive.md`, so two topics sharing a basename never share one.
+  const topic = zoneRelativeName(zoneDir, path).replace(/\.(?:md|markdown|txt)$/i, "");
+  const stem = topic.slice(topic.lastIndexOf("/") + 1);
+  const archive = `${topic}${ARCHIVE_MARK}md`;
   const archivePath = notePath(zoneDir, archive);
   let archiveRaw = "";
   try {
