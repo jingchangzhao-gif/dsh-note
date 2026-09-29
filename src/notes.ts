@@ -334,25 +334,38 @@ export interface WriteResult {
   meta: FrontMeta;
 }
 
+export interface WriteOptions {
+  /** refuse instead of replacing a note that already exists */
+  createOnly?: boolean;
+}
+
 /**
  * Fully replace a note's body (creating the note when missing).
  * `patch` fields merge into the file's front matter when present; existing
  * meta keys not mentioned are preserved. `updated` is maintained for free.
+ * With `createOnly`, an existing note is left alone and the write refused —
+ * a replace is only reported (created: false) after the old body is gone.
  */
 export async function writeNote(
   zoneDir: string,
   name: string,
   body: string,
   patch: FrontMeta = {},
+  options: WriteOptions = {},
 ): Promise<WriteResult> {
   const path = notePath(zoneDir, name);
-  await ensureDir(dirname(path));
   let existing: ParsedFrontMatter | undefined;
   try {
     existing = await readParsed(path);
   } catch {
     /* new note */
   }
+  if (existing && options.createOnly) {
+    throw new Error(
+      `A note already exists: ${zoneRelativeName(zoneDir, path)} (createOnly will not replace it)`,
+    );
+  }
+  await ensureDir(dirname(path));
   const hasMeta =
     Boolean(existing?.hasFrontMatter) || Object.keys(patch).filter((k) => patch[k]).length > 0;
   if (hasMeta) {

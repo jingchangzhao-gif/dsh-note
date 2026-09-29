@@ -222,13 +222,17 @@ export const noteListTool = defineTool({
 export const noteWriteTool = defineTool({
   name: "note_write",
   description:
-    "Fully replace a note's body in the writing zone (creating it when missing) — for updates, rewrites and reordering, not just appends. Front matter fields given here merge in; existing fields are preserved; updated is maintained.",
+    "Fully replace a note's body in the writing zone (creating it when missing) — for updates, rewrites and reordering, not just appends. Front matter fields given here merge in; existing fields are preserved; updated is maintained. Set createOnly when writing a new note, so an existing one of the same name is never overwritten.",
   parameters: {
     name: { type: "string", description: "Note filename, e.g. article.md." },
     content: { type: "string", description: "The new full body (markdown)." },
     title: { type: "string", description: "Optional front matter title." },
     tags: { type: "string", description: "Optional comma separated front matter tags." },
     type: { type: "string", description: "Optional front matter type (e.g. article)." },
+    createOnly: {
+      type: "boolean",
+      description: "Optional: refuse instead of replacing a note that already exists.",
+    },
     dir: {
       type: "string",
       description: "Optional writing directory override (./notes by default).",
@@ -252,7 +256,10 @@ export const noteWriteTool = defineTool({
     },
   },
   async execute(args, exec) {
-    const { name, content, title, tags, type, dir } = (args ?? {}) as Record<string, unknown>;
+    const { name, content, title, tags, type, createOnly, dir } = (args ?? {}) as Record<
+      string,
+      unknown
+    >;
     if (typeof name !== "string" || !name.trim()) throw new Error("A note name is required.");
     if (typeof content !== "string") throw new Error("Note content is required.");
     const patch: Record<string, string> = {};
@@ -260,7 +267,9 @@ export const noteWriteTool = defineTool({
     if (typeof tags === "string" && tags.trim()) patch.tags = tags.trim();
     if (typeof type === "string" && type.trim()) patch.type = type.trim();
     const zone = zoneDir("writing", cwdOf(exec as ExecShape | undefined), text(dir));
-    const result = await writeNote(zone, name.trim(), content, patch);
+    const result = await writeNote(zone, name.trim(), content, patch, {
+      createOnly: booleanOf(createOnly),
+    });
     return { name: result.name, path: result.path, created: result.created };
   },
 });
