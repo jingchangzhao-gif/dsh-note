@@ -8,6 +8,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- `note_recall` reads part of a note: `outline: true` returns its headings
+  with each section's size, and `section: "<heading>"` returns just that
+  section (subsections included), so a long structured note costs only the
+  part the model needs. A missing heading names the ones that exist; a
+  duplicated one is refused. The CLI takes `recall --outline` and
+  `recall --section <heading>`. Asking for more than one of tail, compact,
+  section and outline at once is now refused (compact used to win silently
+  over tail).
 - `stats --zone writing|memory`, which `list`, `search`, `map` and `links`
   already had (and the `note_stats` tool takes as `zone`). Without it, asking
   for the memory zone silently sized `./notes`. The text header and `--json`

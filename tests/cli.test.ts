@@ -405,6 +405,21 @@ describe("cli.mjs end to end", () => {
     await fs.rm(dir, { recursive: true, force: true });
   });
 
+  it("recalls one section or the outline of a note", async () => {
+    const dir = await makeDir();
+    const body = "# Plan\n\nintro\n\n## Setup\n\ninstall pnpm\n\n## Rollout\n\nship it";
+    await runCli(["write", dir, "--name", "plan.md", "--content", body]);
+    const section = await runCli(["recall", dir, "plan.md", "--section", "rollout"]);
+    expect(section.stdout).toBe("## Rollout\n\nship it\n");
+    const outline = await runCli(["recall", dir, "plan.md", "--outline"]);
+    expect(outline.stdout).toMatch(/^# Plan \(\d+ chars\)\n {2}## Setup \(\d+ chars\)\n/);
+    const json = JSON.parse(
+      (await runCli(["recall", dir, "plan.md", "--outline", "--json"])).stdout,
+    );
+    expect(json).toMatchObject({ name: "plan.md", truncated: true });
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
   it("refuses a flag the command does not take instead of ignoring it", async () => {
     const dir = await makeDir();
     await runCli(["memory-add", dir, "--content", "first entry"]);

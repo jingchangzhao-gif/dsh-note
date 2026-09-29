@@ -102,6 +102,33 @@ describe("note tools", () => {
     await fs.rm(root, { recursive: true, force: true });
   });
 
+  it("note_recall reads one section, or just the outline, of a long note", async () => {
+    const root = await makeRoot();
+    const body = `# Plan\n\nintro\n\n## Setup\n\ninstall pnpm\n\n## Rollout\n\n${"x".repeat(2000)}`;
+    await writeNote(join(root, "notes"), "plan.md", body, { title: "Plan" });
+    type View = { content: string; truncated: boolean };
+    const section = await run<View>(noteRecallTool, root, { name: "plan.md", section: "Setup" });
+    expect(section).toEqual({
+      name: "plan.md",
+      content: "## Setup\n\ninstall pnpm",
+      truncated: true,
+    });
+    const outline = await run<View>(noteRecallTool, root, { name: "plan.md", outline: true });
+    // Each heading carries its section's size: the Setup section read above.
+    expect(outline.content).toContain(`  ## Setup (${section.content.length} chars)`);
+    expect(outline.content).toMatch(/^# Plan \(\d+ chars\)\n {2}## Setup .*\n {2}## Rollout/);
+    expect(outline.content).not.toContain("x".repeat(10));
+    expect(outline.truncated).toBe(true);
+    await expect(run(noteRecallTool, root, { name: "plan.md", section: "Deploy" })).rejects.toThrow(
+      /Section not found: Deploy \(headings: Plan, Setup, Rollout\)/,
+    );
+    // Two views at once would silently drop one of them.
+    await expect(
+      run(noteRecallTool, root, { name: "plan.md", section: "Setup", tail: 10 }),
+    ).rejects.toThrow(/one of tail, compact, section or outline/);
+    await fs.rm(root, { recursive: true, force: true });
+  });
+
   it("note_list hides archives in the memory zone but shows them in writing", async () => {
     const root = await makeRoot();
     await writeNote(join(root, "notes"), "draft.md", "body");

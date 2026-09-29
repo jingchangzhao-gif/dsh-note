@@ -33,7 +33,7 @@ const COMMAND_FLAGS = {
   help: [],
   list: ["zone"],
   remember: ["name", "content", "file"],
-  recall: ["name", "tail", "compact"],
+  recall: ["name", "tail", "compact", "section", "outline"],
   write: ["name", "content", "file", "title", "tags", "type"],
   edit: ["name", "old", "new", "all"],
   // --all predates --zone; it is redundant now but kept so old calls still work.
@@ -69,8 +69,9 @@ Commands (dir defaults to ./notes, or ./memory for memory-*):
       --zone memory reads ./memory instead of ./notes and hides archives.
   remember <dir?> --name <file> [--content <text> | --file <path> | --content -]
       Append a block to a writing note (creating it when missing).
-  recall <dir?> --name <file> [--tail <chars>] [--compact]
-      Read a note back; tail = recent characters, compact = summary + tail.
+  recall <dir?> --name <file> [--tail <chars> | --compact | --section <heading> | --outline]
+      Read a note back; tail = recent characters, compact = summary + tail,
+      section = one heading's section, outline = headings with section sizes.
   write <dir?> --name <file> (--content <text> | --file <path> | --content -)
       Replace a note's whole body; optional --title/--tags/--type.
   edit <dir?> --name <file> --old <text> [--new <text>] [--all]
@@ -128,7 +129,7 @@ Convenience: the file name may be typed right after the directory —
 Add --json to print the structured result instead of plain text.
 Content tips: quote multi-word values; use --file/- for Chinese or multiline.`;
 
-const BOOLEAN_FLAGS = new Set(["compact", "all", "json", "force", "dry-run", "help"]);
+const BOOLEAN_FLAGS = new Set(["compact", "outline", "all", "json", "force", "dry-run", "help"]);
 
 function parseArgs(tokens, allowed) {
   const positional = [];
@@ -240,18 +241,14 @@ const handlers = {
     const name = requireFlag(flags, "name", "note filename, e.g. session.md");
     const full = await api.readNoteFull(dir, name);
     // Same views the note_recall tool returns, so the two surfaces can't drift.
-    if (flags.compact) {
-      const view = api.compactView(full);
-      if (flags.json) return { json: { name: full.name, ...view } };
-      return { text: view.content };
-    }
-    if (flags.tail !== undefined) {
-      const view = api.tailView(full, numberFlag(flags, "tail", "--tail"));
-      if (flags.json) return { json: { name: full.name, ...view } };
-      return { text: view.content };
-    }
-    if (flags.json) return { json: { name: full.name, content: full.raw, truncated: false } };
-    return { text: full.raw };
+    const view = api.recallView(full, {
+      tail: numberFlag(flags, "tail", "--tail"),
+      compact: flags.compact,
+      section: flags.section,
+      outline: flags.outline,
+    });
+    if (flags.json) return { json: { name: full.name, ...view } };
+    return { text: view.content };
   },
 
   async write({ positional, flags }) {
@@ -583,7 +580,7 @@ const NAME_POSITIONAL_COMMANDS = new Set([
 const USAGE_LINES = {
   list: "list [dir] [--zone writing|memory]",
   remember: 'remember [dir] <file> --content "text" | --file <path>',
-  recall: "recall [dir] <file> [--tail N] [--compact]",
+  recall: "recall [dir] <file> [--tail N | --compact | --section heading | --outline]",
   write: "write [dir] <file> (--content | --file <path>) [--title/--tags/--type]",
   edit: 'edit [dir] <file> --old "text" [--new "text"] [--all]',
   search: "search [dir] <query words...> [--limit N] [--zone writing|memory]",

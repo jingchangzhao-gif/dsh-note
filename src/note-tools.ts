@@ -22,7 +22,7 @@ import { renameNote } from "./rename";
 import { renderZoneMap, zoneMap, zoneStats } from "./stats";
 import type { ZoneMap } from "./stats";
 import { booleanOf, cwdOf, number, text, type ExecShape } from "./tool-util";
-import { clampSearchLimit, compactView, tailView, visibleOnly } from "./view";
+import { clampSearchLimit, recallView, visibleOnly } from "./view";
 
 function zoneDir(zone: Zone, cwd: string | undefined, dir?: string): string {
   return zoneRoot(zone, cwd, dir);
@@ -101,7 +101,7 @@ export const noteRememberTool = defineTool({
 export const noteRecallTool = defineTool({
   name: "note_recall",
   description:
-    "Read a note back (front matter included). Use tail to pull only the most recent characters. Use compact to get a small view — the summary front matter field plus the recent tail — when the note is long. Keeps context and token cost small.",
+    "Read a note back (front matter included). Use tail to pull only the most recent characters. Use compact to get a small view — the summary front matter field plus the recent tail — when the note is long. For a long structured note, ask for outline first (its headings with section sizes), then read just the section you need by its heading. Pick at most one of tail, compact, section, outline. Keeps context and token cost small.",
   parameters: {
     name: { type: "string", description: "Note filename, e.g. session.md." },
     tail: { type: "number", description: "Optional: return only the last N characters." },
@@ -109,6 +109,15 @@ export const noteRecallTool = defineTool({
       type: "boolean",
       description:
         "Optional: small view (summary field + recent ~800 chars) instead of the full note.",
+    },
+    section: {
+      type: "string",
+      description:
+        'Optional: return only the section under this heading (e.g. "Setup"), subsections included.',
+    },
+    outline: {
+      type: "boolean",
+      description: "Optional: return only the note's headings, each with its section size.",
     },
     dir: {
       type: "string",
@@ -130,16 +139,16 @@ export const noteRecallTool = defineTool({
     ],
   },
   async execute(args, exec) {
-    const { name, tail, compact, dir } = (args ?? {}) as Record<string, unknown>;
+    const { name, tail, compact, section, outline, dir } = (args ?? {}) as Record<string, unknown>;
     if (typeof name !== "string" || !name.trim()) throw new Error("A note name is required.");
     const zone = zoneDir("writing", cwdOf(exec as ExecShape | undefined), text(dir));
     const full = await readNoteFull(zone, name.trim());
-    if (booleanOf(compact)) {
-      const view = compactView(full);
-      return { name: full.name, content: view.content, truncated: view.truncated };
-    }
-    if (tail == null) return { name: full.name, content: full.raw, truncated: false };
-    const view = tailView(full, number(tail));
+    const view = recallView(full, {
+      tail: tail == null ? undefined : number(tail),
+      compact: booleanOf(compact),
+      section: text(section),
+      outline: booleanOf(outline),
+    });
     return { name: full.name, content: view.content, truncated: view.truncated };
   },
 });
