@@ -30,6 +30,11 @@ incompatible with dsh 0.1.7-rc.2`). The surface dsh-note uses is unchanged
 
 ### Fixed
 
+- `memory_compact` with `keep` kept the last N entries in the file rather than
+  the newest N by date. An entry backfilled with an earlier `when` lands last
+  in the file, so compaction could archive the newest entry and keep the
+  backfilled one. Entries are now ranked by their timestamps, the order
+  recalls already use.
 - `memory_compact` on a nested topic wrote its archive at the zone root, not
   beside the topic as documented: `a/decisions.md` archived into
   `decisions.archive.md`, and compacting `b/decisions.md` then appended its

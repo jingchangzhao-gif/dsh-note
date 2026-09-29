@@ -189,6 +189,24 @@ describe("memory bank", () => {
     await fs.rm(dir, { recursive: true, force: true });
   });
 
+  it("compactMemory keeps the newest entries by date, not by position in the file", async () => {
+    const dir = await makeDir();
+    const when = (day: string) => new Date(`${day}T00:00:00Z`).toISOString();
+    // A backfilled entry lands last in the file although it is the oldest.
+    await addMemoryEntry(dir, "newest decision", { name: "t.md", when: when("2024-03-01") });
+    await addMemoryEntry(dir, "middle decision", { name: "t.md", when: when("2024-02-01") });
+    await addMemoryEntry(dir, "backfilled decision", { name: "t.md", when: when("2023-01-01") });
+    const result = await compactMemory(dir, { name: "t.md", keep: 2 });
+    expect(result).toMatchObject({ kept: 2, archived: 1 });
+    const note = await readNoteFull(dir, "t.md");
+    expect(note.body).toContain("newest decision");
+    expect(note.body).toContain("middle decision");
+    expect(note.body).not.toContain("backfilled decision");
+    const archive = await readNoteFull(dir, "t.archive.md");
+    expect(archive.body).toContain("backfilled decision");
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
   it("removeMemoryEntries deletes entries by literal match", async () => {
     const dir = await makeDir();
     await seed(dir);
