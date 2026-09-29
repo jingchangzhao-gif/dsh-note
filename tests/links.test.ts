@@ -216,6 +216,10 @@ describe("link graph", () => {
     expect(shown.broken).toEqual([]);
     expect(shown.note).toBeUndefined();
     await expect(linkReport(dir, { name: "nope.md" })).rejects.toThrow(/Note not found/);
+    // Only names this report can resolve are offered: the hidden archive is not.
+    await expect(linkReport(dir, { name: "liv" })).rejects.toThrow(
+      /Note not found in this zone: liv \(did you mean live\.md\?\)$/,
+    );
     await fs.rm(dir, { recursive: true, force: true });
   });
 });

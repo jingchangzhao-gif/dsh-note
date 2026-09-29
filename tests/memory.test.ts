@@ -225,6 +225,15 @@ describe("memory bank", () => {
     await fs.rm(dir, { recursive: true, force: true });
   });
 
+  it("suggests the topic that was probably meant when one is missing", async () => {
+    const dir = await makeDir();
+    await seed(dir);
+    await expect(compactMemory(dir, { name: "decision" })).rejects.toThrow(
+      /^Memory note not found: decision \(did you mean decisions\.md\?\)$/,
+    );
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
   it("updateMemoryMeta fails clearly when the file is missing", async () => {
     const dir = await makeDir();
     await expect(updateMemoryMeta(dir, "nope.md", { summary: "x" })).rejects.toThrow(/not found/);
