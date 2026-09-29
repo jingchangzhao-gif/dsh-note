@@ -86,6 +86,12 @@ export function visibleOnly<T extends { name: string; meta: FrontMeta }>(
   return includeArchives ? [...items] : items.filter((item) => !isArchive(item.name, item.meta));
 }
 
+/** How note_forget and `forget` report the outcome, so the two read alike. */
+export function forgetText(name: string, removed?: boolean, trashed?: string): string {
+  if (trashed) return `Forgot ${name} (moved to ${trashed})`;
+  return removed ? `Forgot ${name} (deleted permanently)` : `Forgot ${name} (removed: false)`;
+}
+
 export const SEARCH_LIMIT_DEFAULT = 10;
 export const SEARCH_LIMIT_MAX = 50;
 

@@ -12,6 +12,7 @@ import {
   readNoteFull,
   resolveMemoryDir,
   searchNotes,
+  trashNote,
   writeNote,
   zoneRoot,
 } from "../src/notes";
@@ -94,6 +95,20 @@ describe("notes memory operations", () => {
     await appendNote(dir, "gone.md", "hi");
     expect(await deleteNote(dir, "gone.md")).toBe(true);
     expect(await deleteNote(dir, "gone.md")).toBe(false);
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
+  it("trashNote moves a note into .trash, out of every listing, restorably", async () => {
+    const dir = await makeDir();
+    await writeNote(dir, "log/today.md", "first");
+    expect(await trashNote(dir, "log/today.md")).toBe(".trash/log/today.md");
+    expect(await listNotes(dir)).toEqual([]); // .trash is a dot folder: hidden
+    expect(await searchNotes(dir, "first")).toEqual([]);
+    expect(await fs.readFile(join(dir, ".trash/log/today.md"), "utf8")).toBe("first\n");
+    // A second note of the same name does not overwrite the first in the trash.
+    await writeNote(dir, "log/today.md", "second");
+    expect(await trashNote(dir, "log/today.md")).toBe(".trash/log/today-2.md");
+    expect(await trashNote(dir, "log/today.md")).toBeUndefined(); // nothing left to trash
     await fs.rm(dir, { recursive: true, force: true });
   });
 

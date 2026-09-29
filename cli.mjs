@@ -38,7 +38,7 @@ const COMMAND_FLAGS = {
   edit: ["name", "old", "new", "all", "section", "mode"],
   // --all predates --zone; it is redundant now but kept so old calls still work.
   search: ["query", "limit", "zone", "all"],
-  forget: ["name"],
+  forget: ["name", "permanent"],
   stats: ["zone"],
   map: ["chars", "zone"],
   mindmap: ["chars", "zone", "file"],
@@ -83,8 +83,8 @@ Commands (dir defaults to ./notes, or ./memory for memory-*):
       Rewrite one section by its heading instead of quoting its old text.
   search <dir?> --query <words> [--limit <n>] [--zone writing|memory]
       Free keyword search with snippets (archives included in writing).
-  forget <dir?> --name <file>
-      Delete a note file.
+  forget <dir?> --name <file> [--permanent]
+      Move a note to the folder's .trash/ (restorable); --permanent deletes it.
   stats [dir] [--zone writing|memory]
       Size up a zone: files, archives, memory entries, bytes, largest file.
   map [dir] [--chars <n>] [--zone writing|memory]
@@ -143,6 +143,7 @@ const BOOLEAN_FLAGS = new Set([
   "force",
   "dry-run",
   "create-only",
+  "permanent",
   "help",
 ]);
 
@@ -341,9 +342,14 @@ const handlers = {
   async forget({ positional, flags }) {
     const dir = zoneOf("writing", positional[0]);
     const name = requireFlag(flags, "name", "note filename to delete");
-    const removed = await api.deleteNote(dir, name);
-    if (flags.json) return { json: { name, removed } };
-    return { text: `Forgot ${name} (removed: ${removed})` };
+    if (flags.permanent) {
+      const removed = await api.deleteNote(dir, name);
+      if (flags.json) return { json: { name, removed } };
+      return { text: api.forgetText(name, removed) };
+    }
+    const trashed = await api.trashNote(dir, name);
+    if (flags.json) return { json: { name, removed: trashed !== undefined, trashed } };
+    return { text: api.forgetText(name, trashed !== undefined, trashed) };
   },
 
   async stats({ positional, flags }) {
@@ -633,7 +639,7 @@ const USAGE_LINES = {
   write: "write [dir] <file> (--content | --file <path>) [--title/--tags/--type] [--create-only]",
   edit: 'edit [dir] <file> (--old "text" [--all] | --section heading [--mode m]) [--new "text"]',
   search: "search [dir] <query words...> [--limit N] [--zone writing|memory]",
-  forget: "forget [dir] <file>",
+  forget: "forget [dir] <file> [--permanent]",
   stats: "stats [dir] [--zone writing|memory]",
   map: "map [dir] [--chars N] [--zone writing|memory]",
   mindmap: "mindmap [dir] [--chars N] [--zone writing|memory] [--file out.md]",

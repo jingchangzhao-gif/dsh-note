@@ -250,14 +250,26 @@ describe("note tools", () => {
     await fs.rm(root, { recursive: true, force: true });
   });
 
-  it("note_forget deletes the file and renders the outcome", async () => {
+  it("note_forget moves a note to .trash, or deletes it with permanent", async () => {
     const root = await makeRoot();
-    await writeNote(join(root, "notes"), "gone.md", "hi");
-    const removed = await run<{ removed: boolean }>(noteForgetTool, root, { name: "gone.md" });
-    expect(removed.removed).toBe(true);
-    expect(renderText(noteForgetTool, { name: "gone.md" }, removed)).toContain("removed: true");
-    const again = await run<{ removed: boolean }>(noteForgetTool, root, { name: "gone.md" });
+    const notes = join(root, "notes");
+    await writeNote(notes, "gone.md", "hi");
+    type Forgot = { removed: boolean; trashed?: string };
+    const trashed = await run<Forgot>(noteForgetTool, root, { name: "gone.md" });
+    expect(trashed).toMatchObject({ removed: true, trashed: ".trash/gone.md" });
+    expect(renderText(noteForgetTool, {}, trashed)).toBe(
+      "Forgot gone.md (moved to .trash/gone.md)",
+    );
+    await expect(fs.readFile(join(notes, ".trash/gone.md"), "utf8")).resolves.toBe("hi\n");
+    await writeNote(notes, "hard.md", "x");
+    const hard = await run<Forgot>(noteForgetTool, root, { name: "hard.md", permanent: true });
+    expect(hard).toMatchObject({ removed: true });
+    expect(hard.trashed).toBeUndefined();
+    expect(renderText(noteForgetTool, {}, hard)).toBe("Forgot hard.md (deleted permanently)");
+    await expect(fs.stat(join(notes, ".trash/hard.md"))).rejects.toThrow();
+    const again = await run<Forgot>(noteForgetTool, root, { name: "gone.md" });
     expect(again.removed).toBe(false);
+    expect(renderText(noteForgetTool, {}, again)).toBe("Forgot gone.md (removed: false)");
     await fs.rm(root, { recursive: true, force: true });
   });
 

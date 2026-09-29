@@ -171,7 +171,7 @@ folder; on macOS replace `run.bat` with `./run.command`):
 | `note_edit` (section) | `run.bat edit <notes> plan.md --section "Setup" [--mode append] --new "…"` |
 | `note_list` | `run.bat list <dir> [--zone memory] [--tags a,b] [--since <date> --sort recent]` |
 | `note_search` | `run.bat search <dir> <query words...> [--zone memory]` |
-| `note_forget` | `run.bat forget <dir> file.md` |
+| `note_forget` | `run.bat forget <dir> file.md [--permanent]` (default: moved to `.trash/`) |
 | `note_stats` | `run.bat stats <dir>` |
 | `note_map` | `run.bat map <dir> [--chars 1200] [--zone memory]` |
 | `note_links` | `run.bat links <dir> [--name session.md]` |
