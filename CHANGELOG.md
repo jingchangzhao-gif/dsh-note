@@ -66,6 +66,12 @@ incompatible with dsh 0.1.7-rc.2`). The surface dsh-note uses is unchanged
   structured note (outline → one section → section edit), "what changed since
   last session" via `note_list` in the resume recipe, section edits in the
   continuation recipe, and the matching CLI rows.
+- **`note_forget` moves notes to the zone's `.trash/` folder instead of
+  deleting them.** A forgotten note keeps its relative path there (with a
+  `-2`, `-3` … suffix when the name is taken), is hidden from every listing,
+  search and stat, and is restored by moving it back. `permanent: true` (CLI:
+  `forget --permanent`) keeps the old hard delete. The library's `deleteNote`
+  is unchanged; `trashNote` is new.
 
 ### Fixed
 

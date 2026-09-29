@@ -13,6 +13,7 @@ import {
   listNotes,
   readNoteFull,
   searchNotes,
+  trashNote,
   writeNote,
   zoneRoot,
 } from "./notes";
@@ -26,6 +27,7 @@ import { sectionMode } from "./sections";
 import { renderTagCounts, renderZoneMap, STATS_TAGS_SHOWN, zoneMap, zoneStats } from "./stats";
 import type { ZoneMap } from "./stats";
 import { booleanOf, cwdOf, number, text, type ExecShape } from "./tool-util";
+import { forgetText } from "./view";
 import { clampSearchLimit, recallView, visibleOnly } from "./view";
 
 function zoneDir(zone: Zone, cwd: string | undefined, dir?: string): string {
@@ -433,10 +435,14 @@ export const noteSearchTool = defineTool({
 export const noteForgetTool = defineTool({
   name: "note_forget",
   description:
-    "Delete a note file from a zone (writing default, or memory). No-op when it does not exist. For deleting single memory entries use memory_remove.",
+    "Remove a note file from a zone (writing default, or memory) by moving it to the zone's .trash/ folder, where it is hidden from every listing and search but can be restored by moving it back. permanent: true deletes it instead. No-op when it does not exist. For deleting single memory entries use memory_remove.",
   parameters: {
-    name: { type: "string", description: "Note filename to delete." },
+    name: { type: "string", description: "Note filename to remove." },
     zone: { type: "string", description: '"writing" (default) or "memory".' },
+    permanent: {
+      type: "boolean",
+      description: "Delete for good instead of moving to .trash/ (default false).",
+    },
     dir: { type: "string", description: "Optional directory override for the selected zone." },
   },
   output: {
@@ -445,27 +451,28 @@ export const noteForgetTool = defineTool({
       properties: {
         name: { type: "string" },
         removed: { type: "boolean" },
+        trashed: { type: "string" },
         zone: { type: "string" },
       },
       additionalProperties: false,
     },
     render: (_args, value) => {
-      const v = value as { name?: string; removed?: boolean };
-      return [
-        {
-          type: "text",
-          text: `Forgot ${v.name ?? "note"} (removed: ${v.removed ?? false})`,
-        },
-      ];
+      const v = value as { name?: string; removed?: boolean; trashed?: string };
+      return [{ type: "text", text: forgetText(v.name ?? "note", v.removed, v.trashed) }];
     },
   },
   async execute(args, exec) {
-    const { name, zone: zoneValue, dir } = (args ?? {}) as Record<string, unknown>;
+    const { name, zone: zoneValue, permanent, dir } = (args ?? {}) as Record<string, unknown>;
     if (typeof name !== "string" || !name.trim()) throw new Error("A note name is required.");
     const zone = zoneArg(zoneValue, "writing");
     const root = zoneDir(zone, cwdOf(exec as ExecShape | undefined), text(dir));
-    const removed = await deleteNote(root, name.trim());
-    return { name: name.trim(), removed, zone };
+    if (booleanOf(permanent)) {
+      return { name: name.trim(), removed: await deleteNote(root, name.trim()), zone };
+    }
+    const trashed = await trashNote(root, name.trim());
+    return trashed
+      ? { name: name.trim(), removed: true, trashed, zone }
+      : { name: name.trim(), removed: false, zone };
   },
 });
 

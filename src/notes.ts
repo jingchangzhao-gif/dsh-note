@@ -465,7 +465,40 @@ export async function editSection(
   return { name: zoneRelativeName(zoneDir, path), path, changed, section, mode };
 }
 
-/** Delete a note file; reports false when it did not exist. */
+/** Folder inside a zone that note_forget moves notes to (Obsidian uses it too). */
+export const TRASH_DIR = ".trash";
+
+/**
+ * Move a note into the zone's `.trash/` folder, keeping its relative path, and
+ * return where it went (zone-relative), or undefined when there was no note.
+ * `.trash` is a dot folder, so every listing, search and stat already skips
+ * it; restoring is moving the file back. A name already taken in the trash
+ * gets a `-2`, `-3` … suffix instead of being overwritten.
+ */
+export async function trashNote(zoneDir: string, name: string): Promise<string | undefined> {
+  const path = notePath(zoneDir, name);
+  if (!(await exists(path))) return undefined;
+  const rel = zoneRelativeName(zoneDir, path);
+  const dot = rel.lastIndexOf(".");
+  let target = join(zoneDir, TRASH_DIR, rel);
+  for (let n = 2; await exists(target); n += 1) {
+    target = join(zoneDir, TRASH_DIR, `${rel.slice(0, dot)}-${n}${rel.slice(dot)}`);
+  }
+  await ensureDir(dirname(target));
+  await fs.rename(path, target);
+  return zoneRelativeName(zoneDir, target);
+}
+
+async function exists(path: string): Promise<boolean> {
+  try {
+    await fs.access(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Delete a note file permanently; reports false when it did not exist. */
 export async function deleteNote(zoneDir: string, name: string): Promise<boolean> {
   const path = notePath(zoneDir, name);
   try {

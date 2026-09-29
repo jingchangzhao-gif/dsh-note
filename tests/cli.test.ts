@@ -200,7 +200,10 @@ describe("cli.mjs end to end", () => {
     const compacted = await runCli(["memory-compact", bank, "--name", "memory.md", "--keep", "1"]);
     expect(compacted.stdout).toContain("archived 1");
     const forgotten = await runCli(["forget", dir, "--name", "session.md"]);
-    expect(forgotten.stdout).toContain("removed: true");
+    expect(forgotten.stdout).toContain("Forgot session.md (moved to .trash/session.md)");
+    await runCli(["write", dir, "--name", "hard.md", "--content", "x"]);
+    const hard = await runCli(["forget", dir, "hard.md", "--permanent"]);
+    expect(hard.stdout).toContain("Forgot hard.md (deleted permanently)");
     await fs.rm(dir, { recursive: true, force: true });
     await fs.rm(bank, { recursive: true, force: true });
   });

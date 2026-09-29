@@ -77,7 +77,7 @@ decided: use merge commits on paired PRs
 | `note_edit`      | In-place body edits — literal text, or one `section` by its heading       | free |
 | `note_list`      | List a zone's notes; filter by tags / type / changed since, newest first  | free |
 | `note_search`    | **Free keyword search** across writing/memory/all zones                   | free |
-| `note_forget`    | Delete a note file from either zone                                       | free |
+| `note_forget`    | Move a note to the zone's `.trash/` (restorable), or delete `permanent`ly | free |
 | `note_stats`     | Size up a zone: files, archives, entries, bytes, largest file, tags       | free |
 | `note_map`       | **Outline** a zone: file lines + newest entry headings, under a budget    | free |
 | `note_links`     | Follow links between notes: out, back, broken, orphans, islands           | free |
@@ -274,6 +274,12 @@ Returns ranked hits `{ name, title, snippet, score }`. Zero tokens.
 { "name": "session.md", "zone": "writing" }
 ```
 
+Moves the note to the zone's `.trash/` folder (the name Obsidian uses), keeping
+its relative path — `log/today.md` goes to `.trash/log/today.md`, or
+`.trash/log/today-2.md` if that is taken. Dot folders are skipped by every
+listing, search and stat, so the note is gone from view, and restoring it is
+moving the file back. `"permanent": true` deletes it for good instead.
+
 ### `note_stats`
 
 ```json
@@ -446,7 +452,7 @@ macOS is identical with `./run.command` instead of `run.bat`.
 | `write <dir?> --name f (--content \| --file) [--title/--tags/--type] [--create-only]` | Fully replace the body (or only create)                   |
 | `edit <dir?> --name f (--old x [--all] \| --section h [--mode m]) [--new y]`          | Literal body edit, or rewrite one section                 |
 | `search <dir?> --query words [--limit N] [--zone writing\|memory]`                    | Free keyword search with snippets                         |
-| `forget <dir?> --name f`                                                              | Delete a note file                                        |
+| `forget <dir?> --name f [--permanent]`                                                | Move a note to `.trash/` (or delete it for good)          |
 | `stats [dir] [--zone writing\|memory]`                                                | Zone inventory: files, archives, entries, bytes, tags     |
 | `map [dir] [--chars N] [--zone writing\|memory]`                                      | Outline a zone: file lines + newest headings              |
 | `mindmap [dir] [--chars N] [--zone ...] [--file out.md]`                              | The outline as a Mermaid mind map (renders)               |
