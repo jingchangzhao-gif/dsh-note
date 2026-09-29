@@ -119,6 +119,10 @@ incompatible with dsh 0.1.7-rc.2`). The surface dsh-note uses is unchanged
 - `dsh-note help` printed its Windows examples broken across lines
   (`recall C:` then `otes session.md`): the `\n` in `C:\notes` inside the
   help template was a newline escape. The backslash is escaped now.
+- `recall plan.md` (a note file name with no folder) took `plan.md` for the
+  folder and failed with `missing --name`. A lone argument ending in
+  `.md`/`.markdown`/`.txt` is now the note in the default folder, for every
+  command that takes a file name, unless a folder of that name exists.
 
 ## [0.4.0] - 2026-09-20
 

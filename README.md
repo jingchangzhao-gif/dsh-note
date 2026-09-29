@@ -472,6 +472,9 @@ Notes:
   a `dir` argument still points them at any other folder.
 - `run.bat <dir>` with a single bare argument keeps the legacy launcher form
   (list that directory).
+- A note file name typed alone is the note in the default folder:
+  `recall session.md` is `recall ./notes --name session.md` (unless a folder
+  called `session.md` exists).
 - Quote multi-word values. For Chinese or multiline content, pass `--file
 <path>` (UTF-8) or `--content -` and pipe stdin. `"$@"` on macOS/Linux
   forwards arguments byte-exactly; on Windows `%*` is re-parsed by cmd (`%`,
