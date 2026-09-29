@@ -35,7 +35,7 @@ const COMMAND_FLAGS = {
   remember: ["name", "content", "file"],
   recall: ["name", "tail", "compact", "section", "outline"],
   write: ["name", "content", "file", "title", "tags", "type"],
-  edit: ["name", "old", "new", "all"],
+  edit: ["name", "old", "new", "all", "section", "mode"],
   // --all predates --zone; it is redundant now but kept so old calls still work.
   search: ["query", "limit", "zone", "all"],
   forget: ["name"],
@@ -76,6 +76,8 @@ Commands (dir defaults to ./notes, or ./memory for memory-*):
       Replace a note's whole body; optional --title/--tags/--type.
   edit <dir?> --name <file> --old <text> [--new <text>] [--all]
       Literal in-place body edit (front matter is never matched).
+  edit <dir?> --name <file> --section <heading> [--mode replace|append|prepend] --new <text>
+      Rewrite one section by its heading instead of quoting its old text.
   search <dir?> --query <words> [--limit <n>] [--zone writing|memory]
       Free keyword search with snippets (archives included in writing).
   forget <dir?> --name <file>
@@ -267,6 +269,17 @@ const handlers = {
   async edit({ positional, flags }) {
     const dir = zoneOf("writing", positional[0]);
     const name = requireFlag(flags, "name", "note filename, e.g. session.md");
+    if (flags.section !== undefined) {
+      if (flags.old !== undefined || flags.all) {
+        throw new Error("give either --old (literal edit) or --section, not both");
+      }
+      const mode = api.sectionMode(flags.mode);
+      const result = await api.editSection(dir, name, flags.section, flags.new ?? "", mode);
+      if (flags.json) return { json: result };
+      return {
+        text: `Edited ${result.name}: section ${result.section} (${result.mode}), changed: ${result.changed}`,
+      };
+    }
     const old = requireFlag(flags, "old", "literal text to find");
     const replacement = flags.new ?? "";
     const result = await api.editNote(dir, name, [{ old, new: replacement, all: flags.all }]);
@@ -582,7 +595,7 @@ const USAGE_LINES = {
   remember: 'remember [dir] <file> --content "text" | --file <path>',
   recall: "recall [dir] <file> [--tail N | --compact | --section heading | --outline]",
   write: "write [dir] <file> (--content | --file <path>) [--title/--tags/--type]",
-  edit: 'edit [dir] <file> --old "text" [--new "text"] [--all]',
+  edit: 'edit [dir] <file> (--old "text" [--all] | --section heading [--mode m]) [--new "text"]',
   search: "search [dir] <query words...> [--limit N] [--zone writing|memory]",
   forget: "forget [dir] <file>",
   stats: "stats [dir] [--zone writing|memory]",

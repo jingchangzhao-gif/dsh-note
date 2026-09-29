@@ -8,6 +8,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- `note_edit` section mode: `section: "<heading>"` with `new` and `mode`
+  (`replace` by default, `append` or `prepend`) rewrites one section without
+  quoting its old text — the edit side of `note_recall`'s `section`. The CLI
+  takes `edit --section <heading> [--mode …] --new <text>`.
 - `note_recall` reads part of a note: `outline: true` returns its headings
   with each section's size, and `section: "<heading>"` returns just that
   section (subsections included), so a long structured note costs only the

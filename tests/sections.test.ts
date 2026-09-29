@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { findSection, noteOutline, renderOutline } from "../src/sections";
+import { findSection, noteOutline, patchSection, renderOutline } from "../src/sections";
 
 const BODY = [
   "intro line",
@@ -73,5 +73,31 @@ describe("note sections", () => {
     expect(() => findSection(body, "notes")).toThrow(
       /^Section is ambiguous: "notes" matches 2 headings \(lines 1, 5\)$/,
     );
+  });
+
+  it("replaces a section's content, subsections included, and keeps its heading", () => {
+    const out = patchSection(BODY, "setup", "use pnpm 10", "replace");
+    expect(findSection(out, "Setup").text).toBe("## Setup\n\nuse pnpm 10");
+    expect(out).not.toContain("fine print"); // ### Details was part of Setup
+    expect(out.startsWith("intro line\n\n# Plan\n\nthe plan\n\n## Setup")).toBe(true);
+    expect(out.endsWith("## Rollout\n\nship it")).toBe(true);
+  });
+
+  it("appends at the end of a section and prepends under its heading", () => {
+    const appended = patchSection(BODY, "Setup", "then run tests", "append");
+    expect(findSection(appended, "Setup").text.endsWith("fine print\n\nthen run tests")).toBe(true);
+    expect(findSection(appended, "Rollout").text).toBe("## Rollout\n\nship it");
+    const prepended = patchSection(BODY, "Rollout", "after QA:", "prepend");
+    expect(findSection(prepended, "Rollout").text).toBe("## Rollout\n\nafter QA:\n\nship it");
+    // The last section, and a heading with nothing under it yet.
+    expect(patchSection("## Empty", "empty", "now filled", "prepend")).toBe(
+      "## Empty\n\nnow filled",
+    );
+  });
+
+  it("refuses a section edit it cannot place exactly", () => {
+    expect(() => patchSection(BODY, "Deploy", "x", "append")).toThrow(/Section not found: Deploy/);
+    expect(() => patchSection("## A\n\n## A", "a", "x", "replace")).toThrow(/ambiguous/);
+    expect(() => patchSection(BODY, "Setup", "  ", "append")).toThrow(/Text to append is required/);
   });
 });

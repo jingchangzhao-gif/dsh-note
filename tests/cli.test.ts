@@ -420,6 +420,37 @@ describe("cli.mjs end to end", () => {
     await fs.rm(dir, { recursive: true, force: true });
   });
 
+  it("edits one section by its heading", async () => {
+    const dir = await makeDir();
+    await runCli([
+      "write",
+      dir,
+      "--name",
+      "plan.md",
+      "--content",
+      "## Setup\n\nnpm\n\n## Rollout\n\nship",
+    ]);
+    const out = await runCli(["edit", dir, "plan.md", "--section", "setup", "--new", "pnpm"]);
+    expect(out.stdout).toContain("Edited plan.md: section Setup (replace), changed: true");
+    await runCli([
+      "edit",
+      dir,
+      "plan.md",
+      "--section",
+      "Rollout",
+      "--mode",
+      "prepend",
+      "--new",
+      "QA first",
+    ]);
+    const recalled = await runCli(["recall", dir, "plan.md"]);
+    expect(recalled.stdout.trimEnd()).toBe("## Setup\n\npnpm\n\n## Rollout\n\nQA first\n\nship");
+    await expect(
+      runCli(["edit", dir, "plan.md", "--section", "Setup", "--all", "--new", "x"]),
+    ).rejects.toThrow(/either --old \(literal edit\) or --section, not both/);
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
   it("refuses a flag the command does not take instead of ignoring it", async () => {
     const dir = await makeDir();
     await runCli(["memory-add", dir, "--content", "first entry"]);

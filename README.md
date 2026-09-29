@@ -74,7 +74,7 @@ decided: use merge commits on paired PRs
 | `note_remember`  | Append a snippet to a writing note (create if missing)                    | free |
 | `note_recall`    | Read a note back — full, `tail`, `compact`, one `section`, or `outline`   | free |
 | `note_write`     | **Fully replace** a note's body (updates, rewrites, reordering)           | free |
-| `note_edit`      | In-place literal edits of the body, front matter untouched                | free |
+| `note_edit`      | In-place body edits — literal text, or one `section` by its heading       | free |
 | `note_list`      | List a zone's notes with titles / types / tags                            | free |
 | `note_search`    | **Free keyword search** across writing/memory/all zones                   | free |
 | `note_forget`    | Delete a note file from either zone                                       | free |
@@ -224,6 +224,17 @@ Replaces the whole body; front matter keys given merge in, others are kept.
 ```
 
 Replaces literal text in the body (never inside front matter).
+
+Or rewrite one section by its heading, without quoting its old text:
+
+```json
+{ "name": "plan.md", "section": "Setup", "new": "pnpm 10", "mode": "replace" }
+```
+
+`mode` is `replace` (the default: everything under the heading, subsections
+included, which is what `note_recall`'s `section` returns), `append` (at the end
+of the section) or `prepend` (right under the heading). The heading must match
+exactly one heading in the note; `old`/`all` cannot be combined with `section`.
 
 ### `note_list`
 
@@ -414,7 +425,7 @@ macOS is identical with `./run.command` instead of `run.bat`.
 | `remember <dir?> --name f [--content \| --file \| -]`                        | Append a block (create if missing)                        |
 | `recall <dir?> --name f [--tail N \| --compact \| --section h \| --outline]` | Full text, tail, compact view, one section or the outline |
 | `write <dir?> --name f (--content \| --file) [--title/--tags/--type]`        | Fully replace the body                                    |
-| `edit <dir?> --name f --old x [--new y] [--all]`                             | In-place literal body edit                                |
+| `edit <dir?> --name f (--old x [--all] \| --section h [--mode m]) [--new y]` | Literal body edit, or rewrite one section                 |
 | `search <dir?> --query words [--limit N] [--zone writing\|memory]`           | Free keyword search with snippets                         |
 | `forget <dir?> --name f`                                                     | Delete a note file                                        |
 | `stats [dir] [--zone writing\|memory]`                                       | Zone inventory: files, archives, entries, bytes           |

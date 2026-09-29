@@ -129,6 +129,37 @@ describe("note tools", () => {
     await fs.rm(root, { recursive: true, force: true });
   });
 
+  it("note_edit rewrites one section without quoting its old text", async () => {
+    const root = await makeRoot();
+    const notes = join(root, "notes");
+    await writeNote(notes, "plan.md", "# Plan\n\n## Setup\n\nnpm\n\n## Rollout\n\nship it", {
+      tags: "work",
+    });
+    type Edit = { name: string; changed: boolean; edits: number };
+    const replaced = await run<Edit>(noteEditTool, root, {
+      name: "plan.md",
+      section: "Setup",
+      new: "pnpm 10",
+    });
+    expect(replaced).toEqual({ name: "plan.md", changed: true, edits: 1 });
+    await run(noteEditTool, root, {
+      name: "plan.md",
+      section: "rollout",
+      mode: "append",
+      new: "then tag",
+    });
+    const note = await readNoteFull(notes, "plan.md");
+    expect(note.body).toBe("# Plan\n\n## Setup\n\npnpm 10\n\n## Rollout\n\nship it\n\nthen tag");
+    expect(note.meta.tags).toBe("work"); // front matter untouched
+    await expect(
+      run(noteEditTool, root, { name: "plan.md", section: "Setup", old: "x", new: "y" }),
+    ).rejects.toThrow(/either old \(literal edit\) or section, not both/);
+    await expect(
+      run(noteEditTool, root, { name: "plan.md", section: "Setup", mode: "insert", new: "y" }),
+    ).rejects.toThrow(/mode must be replace, append or prepend/);
+    await fs.rm(root, { recursive: true, force: true });
+  });
+
   it("note_list hides archives in the memory zone but shows them in writing", async () => {
     const root = await makeRoot();
     await writeNote(join(root, "notes"), "draft.md", "body");

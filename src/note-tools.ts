@@ -9,6 +9,7 @@ import {
   appendNote,
   deleteNote,
   editNote,
+  editSection,
   listNotes,
   readNoteFull,
   searchNotes,
@@ -19,6 +20,7 @@ import type { NoteFile, Zone } from "./notes";
 import { linkReport, renderLinkReport } from "./links";
 import type { LinkReport } from "./links";
 import { renameNote } from "./rename";
+import { sectionMode } from "./sections";
 import { renderZoneMap, zoneMap, zoneStats } from "./stats";
 import type { ZoneMap } from "./stats";
 import { booleanOf, cwdOf, number, text, type ExecShape } from "./tool-util";
@@ -240,12 +242,23 @@ export const noteWriteTool = defineTool({
 export const noteEditTool = defineTool({
   name: "note_edit",
   description:
-    'Edit a note\'s body in place with literal text replacements (front matter is never matched). Without all=true only the first occurrence is replaced; new="" deletes the match. Use for targeted updates after the model decided what to change.',
+    "Edit a note's body in place (front matter is never matched). Literal mode: old → new; without all=true only the first occurrence is replaced, and new=\"\" deletes the match. Section mode: give section (a heading) instead of old, and new becomes that section's content — mode replace (default, subsections included), append (end of the section) or prepend (under the heading) — so a part can be rewritten without quoting its old text. Use for targeted updates after the model decided what to change.",
   parameters: {
     name: { type: "string", description: "Note filename, e.g. session.md." },
     old: { type: "string", description: "Literal text to find (body only)." },
-    new: { type: "string", description: "Replacement text (default empty = delete)." },
+    new: {
+      type: "string",
+      description: "Replacement text (default empty = delete), or the section content.",
+    },
     all: { type: "boolean", description: "Replace every occurrence instead of just the first." },
+    section: {
+      type: "string",
+      description: 'Section mode: the heading to edit under, e.g. "Setup" (instead of old).',
+    },
+    mode: {
+      type: "string",
+      description: 'Section mode: "replace" (default), "append" or "prepend".',
+    },
     dir: {
       type: "string",
       description: "Optional writing directory override (./notes by default).",
@@ -272,10 +285,31 @@ export const noteEditTool = defineTool({
     },
   },
   async execute(args, exec) {
-    const { name, old, new: replacement, all, dir } = (args ?? {}) as Record<string, unknown>;
+    const {
+      name,
+      old,
+      new: replacement,
+      all,
+      section,
+      mode,
+      dir,
+    } = (args ?? {}) as Record<string, unknown>;
     if (typeof name !== "string" || !name.trim()) throw new Error("A note name is required.");
-    if (typeof old !== "string" || old === "") throw new Error("old text to find is required.");
     const zone = zoneDir("writing", cwdOf(exec as ExecShape | undefined), text(dir));
+    if (typeof section === "string") {
+      if (old !== undefined || all !== undefined) {
+        throw new Error("Give either old (literal edit) or section, not both.");
+      }
+      const result = await editSection(
+        zone,
+        name.trim(),
+        section,
+        typeof replacement === "string" ? replacement : "",
+        sectionMode(mode),
+      );
+      return { name: result.name, changed: result.changed, edits: result.changed ? 1 : 0 };
+    }
+    if (typeof old !== "string" || old === "") throw new Error("old text to find is required.");
     const result = await editNote(zone, name.trim(), [
       { old, new: typeof replacement === "string" ? replacement : "", all: booleanOf(all) },
     ]);

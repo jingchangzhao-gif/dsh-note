@@ -10,6 +10,8 @@ import type { Dirent } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { FRONT_MATTER_MARK, nowIso, parseFrontMatter, withFrontMatter } from "./frontmatter";
 import type { FrontMeta, ParsedFrontMatter } from "./frontmatter";
+import { findSection, patchSection } from "./sections";
+import type { SectionMode } from "./sections";
 
 export type Zone = "writing" | "memory";
 
@@ -399,16 +401,47 @@ export async function editNote(zoneDir: string, name: string, ops: EditOp[]): Pr
     }
   }
   const changed = edits > 0;
-  if (changed) {
-    const meta = { ...fm.meta };
-    if (fm.hasFrontMatter || Object.keys(meta).length > 0) {
-      meta.updated = nowIso();
-      await writeTextFile(path, withFrontMatter(meta, body, fm.lists));
-    } else {
-      await writeTextFile(path, `${body.trimEnd()}\n`);
-    }
-  }
+  if (changed) await writeBody(path, fm, body);
   return { name: zoneRelativeName(zoneDir, path), path, changed, edits };
+}
+
+/** Save a new body under the note's front matter, refreshing `updated`. */
+async function writeBody(path: string, fm: ParsedFrontMatter, body: string): Promise<void> {
+  if (fm.hasFrontMatter) {
+    await writeTextFile(path, withFrontMatter({ ...fm.meta, updated: nowIso() }, body, fm.lists));
+  } else {
+    await writeTextFile(path, `${body.trimEnd()}\n`);
+  }
+}
+
+export interface SectionEditResult {
+  name: string;
+  path: string;
+  changed: boolean;
+  /** the heading as written in the note */
+  section: string;
+  mode: SectionMode;
+}
+
+/**
+ * Rewrite one section of a note by its heading (see patchSection): the model
+ * names the part to change instead of quoting the old text. Front matter is
+ * never touched beyond `updated`.
+ */
+export async function editSection(
+  zoneDir: string,
+  name: string,
+  heading: string,
+  content: string,
+  mode: SectionMode = "replace",
+): Promise<SectionEditResult> {
+  const path = notePath(zoneDir, name);
+  const fm = parseFrontMatter(await readNoteText(path, name));
+  const section = findSection(fm.body, heading).heading.text;
+  const body = patchSection(fm.body, heading, content, mode);
+  const changed = body !== fm.body.replace(/\s+$/, "");
+  if (changed) await writeBody(path, fm, body);
+  return { name: zoneRelativeName(zoneDir, path), path, changed, section, mode };
 }
 
 /** Delete a note file; reports false when it did not exist. */
