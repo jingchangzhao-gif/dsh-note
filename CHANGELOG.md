@@ -8,6 +8,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- `stats --zone writing|memory`, which `list`, `search`, `map` and `links`
+  already had (and the `note_stats` tool takes as `zone`). Without it, asking
+  for the memory zone silently sized `./notes`. The text header and `--json`
+  name the zone.
 - `tests/compatibility.test.ts` guards the declared harness range: it must
   accept every dsh version dsh-note claims and the `@deepseek-ai/dsh-tools` the
   suite runs against, and must refuse 0.2 and later.

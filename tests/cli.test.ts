@@ -379,6 +379,14 @@ describe("cli.mjs end to end", () => {
     const writing = await runCli(["list"], root);
     expect(writing.stdout).toContain("note.md");
     expect(writing.stdout).not.toContain("memory.md");
+    // stats sizes the zone it is asked about, like note_stats does.
+    const memoryStats = await runCli(["stats", "--zone", "memory"], root);
+    expect(memoryStats.stdout).toMatch(/[\\/]memory \[memory\]\n/);
+    expect(memoryStats.stdout).toContain("largest: memory.md");
+    const statsJson = JSON.parse(
+      (await runCli(["stats", "--zone", "memory", "--json"], root)).stdout,
+    );
+    expect(statsJson).toMatchObject({ zone: "memory", files: 1 });
     // Reading a zone must not bring it into existence.
     const fresh = await makeDir();
     await runCli(["list", "--zone", "memory"], fresh);
