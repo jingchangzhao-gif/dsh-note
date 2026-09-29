@@ -6,6 +6,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-09-29
+
+Working inside notes without reading them whole: read a note's outline or one
+section and edit that section in place; filter listings by tag, type and what
+changed recently; see the zone's tags with counts. Missing names suggest the
+ones that were meant, a forgotten note goes to a restorable `.trash/`, YAML
+list front matter from Obsidian and basic-memory is read and kept, the CLI
+refuses flags it would have ignored, and dsh-note installs on the current dsh
+runtime again.
+
 ### Added
 
 - `note_write` takes `createOnly`: a write meant to create a note is refused
