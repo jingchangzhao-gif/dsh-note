@@ -31,7 +31,7 @@ const NAME = "dsh-note";
 // the defaults instead of the date).
 const COMMAND_FLAGS = {
   help: [],
-  list: ["zone"],
+  list: ["zone", "tags", "type", "since", "sort", "limit"],
   remember: ["name", "content", "file"],
   recall: ["name", "tail", "compact", "section", "outline"],
   write: ["name", "content", "file", "title", "tags", "type"],
@@ -64,9 +64,11 @@ Usage:
   node cli.mjs <command> [dir] [flags...]
 
 Commands (dir defaults to ./notes, or ./memory for memory-*):
-  list [dir] [--zone writing|memory]
+  list [dir] [--zone writing|memory] [--tags a,b] [--type t] [--since date]
+      [--sort name|recent] [--limit N]
       List note files with title/type/tags. --json for raw data.
       --zone memory reads ./memory instead of ./notes and hides archives.
+      --since/--sort recent use (and show) each file's modification time.
   remember <dir?> --name <file> [--content <text> | --file <path> | --content -]
       Append a block to a writing note (creating it when missing).
   recall <dir?> --name <file> [--tail <chars> | --compact | --section <heading> | --outline]
@@ -216,12 +218,22 @@ const handlers = {
   async list({ positional, flags }) {
     const zone = zoneFlag(flags.zone);
     const dir = zoneOf(zone, positional[0]);
-    const notes = api.visibleOnly(await api.listNotes(dir), zone !== "memory");
+    const notes = await api.filterNotes(
+      api.visibleOnly(await api.listNotes(dir), zone !== "memory"),
+      {
+        tags: flags.tags,
+        type: flags.type,
+        since: flags.since,
+        sort: flags.sort,
+        limit: numberFlag(flags, "limit", "--limit"),
+      },
+    );
     if (flags.json) return { json: notes };
     const lines = [`Notes in ${dir} (${notes.length}):`];
     for (const note of notes) {
+      const modified = note.modified ? ` (modified ${note.modified})` : "";
       lines.push(
-        `- ${note.name}${note.title ? ` — ${note.title}` : ""}${listMetaSuffix(note.meta)}`,
+        `- ${note.name}${note.title ? ` — ${note.title}` : ""}${listMetaSuffix(note.meta)}${modified}`,
       );
     }
     return { text: lines.join("\n") };
@@ -591,7 +603,7 @@ const NAME_POSITIONAL_COMMANDS = new Set([
 // One-line usage per command, appended to errors so the window always shows
 // a concrete hint (instead of a bare "missing --name" message).
 const USAGE_LINES = {
-  list: "list [dir] [--zone writing|memory]",
+  list: "list [dir] [--zone writing|memory] [--tags a,b] [--type t] [--since date] [--sort name|recent] [--limit N]",
   remember: 'remember [dir] <file> --content "text" | --file <path>',
   recall: "recall [dir] <file> [--tail N | --compact | --section heading | --outline]",
   write: "write [dir] <file> (--content | --file <path>) [--title/--tags/--type]",
