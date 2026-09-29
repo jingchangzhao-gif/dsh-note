@@ -99,6 +99,12 @@ function headingKey(value: string): string {
  * that appears twice is refused rather than guessed.
  */
 export function findSection(body: string, heading: string): Section {
+  const { lines, match } = matchSection(body, heading);
+  const { start, end, level, text, line, chars } = match;
+  return { heading: { level, text, line, chars }, text: sectionText(lines, start, end) };
+}
+
+function matchSection(body: string, heading: string): { lines: string[]; match: Located } {
   const { lines, headings } = locate(body);
   const key = headingKey(heading);
   const matches = headings.filter((candidate) => headingKey(candidate.text) === key);
@@ -115,6 +121,42 @@ export function findSection(body: string, heading: string): Section {
       `Section is ambiguous: "${heading.trim()}" matches ${matches.length} headings (lines ${at})`,
     );
   }
-  const [{ start, end, level, text, line, chars }] = matches;
-  return { heading: { level, text, line, chars }, text: sectionText(lines, start, end) };
+  return { lines, match: matches[0] };
+}
+
+export type SectionMode = "replace" | "append" | "prepend";
+
+/** Read a caller's mode (tool argument or CLI flag); replace when unset. */
+export function sectionMode(value: unknown): SectionMode {
+  if (value === undefined) return "replace";
+  if (value === "replace" || value === "append" || value === "prepend") return value;
+  throw new Error("mode must be replace, append or prepend.");
+}
+
+/**
+ * Rewrite one section in place: `replace` swaps everything under the heading
+ * (subsections included — the same span findSection returns), `append` adds
+ * text at the section's end, `prepend` right under its heading. The heading
+ * line and every other section are kept as they were; blank lines around the
+ * changed section are normalized to one.
+ */
+export function patchSection(
+  body: string,
+  heading: string,
+  content: string,
+  mode: SectionMode,
+): string {
+  const added = content.trim();
+  if (mode !== "replace" && added === "") throw new Error(`Text to ${mode} is required.`);
+  const { lines, match } = matchSection(body, heading);
+  const headingLine = lines[match.start];
+  const under = sectionText(lines, match.start + 1, match.end).trim();
+  let parts: string[];
+  if (mode === "replace") parts = [headingLine, added];
+  else if (mode === "append") parts = [headingLine, under, added];
+  else parts = [headingLine, added, under];
+  const section = parts.filter((part) => part !== "").join("\n\n");
+  const before = sectionText(lines, 0, match.start);
+  const after = sectionText(lines, match.end, lines.length);
+  return [before, section, after].filter((part) => part !== "").join("\n\n");
 }
