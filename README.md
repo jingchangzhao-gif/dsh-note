@@ -399,7 +399,7 @@ macOS is identical with `./run.command` instead of `run.bat`.
 | `edit <dir?> --name f --old x [--new y] [--all]`                       | In-place literal body edit                      |
 | `search <dir?> --query words [--limit N] [--zone writing\|memory]`     | Free keyword search with snippets               |
 | `forget <dir?> --name f`                                               | Delete a note file                              |
-| `stats [dir]`                                                          | Zone inventory: files, archives, entries, bytes |
+| `stats [dir] [--zone writing\|memory]`                                 | Zone inventory: files, archives, entries, bytes |
 | `map [dir] [--chars N] [--zone writing\|memory]`                       | Outline a zone: file lines + newest headings    |
 | `mindmap [dir] [--chars N] [--zone ...] [--file out.md]`               | The outline as a Mermaid mind map (renders)     |
 | `links [dir] [--name <note>] [--zone writing\|memory]`                 | Follow links: out, back, broken, orphans        |

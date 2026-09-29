@@ -72,7 +72,7 @@ Commands (dir defaults to ./notes, or ./memory for memory-*):
       Free keyword search with snippets (archives included in writing).
   forget <dir?> --name <file>
       Delete a note file.
-  stats [dir]
+  stats [dir] [--zone writing|memory]
       Size up a zone: files, archives, memory entries, bytes, largest file.
   map [dir] [--chars <n>] [--zone writing|memory]
       Outline a zone: one line per file plus its newest entry headings,
@@ -294,11 +294,12 @@ const handlers = {
   },
 
   async stats({ positional, flags }) {
-    const dir = zoneOf("writing", positional[0]);
+    const zone = zoneFlag(flags.zone);
+    const dir = zoneOf(zone, positional[0]);
     const result = await api.zoneStats(dir);
-    if (flags.json) return { json: result };
+    if (flags.json) return { json: { zone, ...result } };
     const lines = [
-      result.dir,
+      `${result.dir} [${zone}]`, // note_stats' header
       `files: ${result.files} (+${result.archives} archive)`,
       `entries: ${result.entries}`,
       `bytes: ${result.bytes}`,
@@ -574,7 +575,7 @@ const USAGE_LINES = {
   edit: 'edit [dir] <file> --old "text" [--new "text"] [--all]',
   search: "search [dir] <query words...> [--limit N] [--zone writing|memory]",
   forget: "forget [dir] <file>",
-  stats: "stats [dir]",
+  stats: "stats [dir] [--zone writing|memory]",
   map: "map [dir] [--chars N] [--zone writing|memory]",
   mindmap: "mindmap [dir] [--chars N] [--zone writing|memory] [--file out.md]",
   links: "links [dir] [--name <note>] [--zone writing|memory]",
