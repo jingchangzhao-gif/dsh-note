@@ -7,6 +7,7 @@
 import type { FrontMeta } from "./frontmatter";
 import { clampChars, compactTail, COMPACT_BUDGET, isArchive, tailText } from "./notes";
 import type { NoteContent } from "./notes";
+import { findSection, noteOutline, renderOutline } from "./sections";
 
 export interface RecallView {
   /** what the caller shows the model/user */
@@ -33,6 +34,44 @@ export function compactView(full: NoteContent, budget: number = COMPACT_BUDGET):
 export function tailView(full: NoteContent, chars?: number): RecallView {
   const wanted = clampChars(chars ?? 1);
   return { content: tailText(full.raw, wanted), truncated: full.raw.length > wanted };
+}
+
+/** One section of the body by its heading (subsections included). */
+export function sectionView(full: NoteContent, heading: string): RecallView {
+  const { text } = findSection(full.body, heading);
+  return { content: text, truncated: text.length < full.body.trim().length };
+}
+
+/** Just the body's headings with their section sizes — a map before a read. */
+export function outlineView(full: NoteContent): RecallView {
+  return { content: renderOutline(noteOutline(full.body)), truncated: full.body.trim() !== "" };
+}
+
+export interface NoteViewOptions {
+  tail?: number;
+  compact?: boolean;
+  section?: string;
+  outline?: boolean;
+}
+
+/**
+ * The view a recall asked for: the full text by default, or exactly one of
+ * tail, compact, section or outline. Asking for two would silently drop one,
+ * so that is refused.
+ */
+export function recallView(full: NoteContent, options: NoteViewOptions = {}): RecallView {
+  const asked = [
+    options.tail !== undefined,
+    Boolean(options.compact),
+    options.section !== undefined,
+    Boolean(options.outline),
+  ].filter(Boolean).length;
+  if (asked > 1) throw new Error("Ask for one of tail, compact, section or outline, not several.");
+  if (options.outline) return outlineView(full);
+  if (options.section !== undefined) return sectionView(full, options.section);
+  if (options.compact) return compactView(full);
+  if (options.tail !== undefined) return tailView(full, options.tail);
+  return { content: full.raw, truncated: false };
 }
 
 /**

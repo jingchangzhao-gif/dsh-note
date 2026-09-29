@@ -11,3 +11,4 @@ export * from "./stats";
 export * from "./bundle";
 export * from "./links";
 export * from "./rename";
+export * from "./sections";
