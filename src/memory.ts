@@ -117,6 +117,15 @@ function parseDateOrThrow(value: string | undefined, label: string): number | un
   return ms;
 }
 
+/** Read a topic file, turning "missing" into a message a user can act on. */
+async function readMemoryText(path: string, name: string): Promise<string> {
+  try {
+    return await fs.readFile(path, "utf8");
+  } catch {
+    throw new Error(`Memory note not found: ${name}`);
+  }
+}
+
 /** Clamp an optional integer-ish option into [min, max], tolerating NaN. */
 export function clampInt(
   value: number | undefined,
@@ -325,13 +334,7 @@ export async function updateMemoryMeta(
   patch: FrontMeta,
 ): Promise<{ name: string; changed: boolean; meta: FrontMeta }> {
   const path = notePath(zoneDir, name);
-  let raw = "";
-  try {
-    raw = await fs.readFile(path, "utf8");
-  } catch {
-    throw new Error(`Memory note not found: ${name}`);
-  }
-  const fm = parseFrontMatter(raw);
+  const fm = parseFrontMatter(await readMemoryText(path, name));
   const next: FrontMeta = { ...fm.meta, ...patch, updated: nowIso() };
   // `updated` always moves, so compare the merged fields only: reporting
   // changed:true for a no-op merge is what makes a caller re-fetch needlessly.
@@ -352,8 +355,7 @@ export async function compactMemory(
 ): Promise<CompactResult> {
   const name = options.name?.trim() || DEFAULT_MEMORY_NOTE;
   const path = notePath(zoneDir, name);
-  const raw = await fs.readFile(path, "utf8");
-  const fm = parseFrontMatter(raw);
+  const fm = parseFrontMatter(await readMemoryText(path, name));
   const parsed = parseMemory(fm.body);
   let removed: MemoryEntry[] = [];
   if (options.olderThan !== undefined) {
@@ -413,8 +415,7 @@ export async function removeMemoryEntries(
   const needle = match.trim();
   if (!needle) throw new Error("A match text is required.");
   const path = notePath(zoneDir, name);
-  const raw = await fs.readFile(path, "utf8");
-  const fm = parseFrontMatter(raw);
+  const fm = parseFrontMatter(await readMemoryText(path, name));
   const parsed = parseMemory(fm.body);
   const keptEntries = parsed.entries.filter((entry) => !entry.text.includes(needle));
   const removed = parsed.entries.length - keptEntries.length;

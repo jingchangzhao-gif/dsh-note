@@ -231,6 +231,17 @@ describe("memory bank", () => {
     await fs.rm(dir, { recursive: true, force: true });
   });
 
+  it("compact and remove say a missing topic is not found instead of leaking ENOENT", async () => {
+    const dir = await makeDir();
+    await expect(compactMemory(dir, { name: "ghost.md" })).rejects.toThrow(
+      /^Memory note not found: ghost\.md$/,
+    );
+    await expect(removeMemoryEntries(dir, "ghost.md", "x")).rejects.toThrow(
+      /^Memory note not found: ghost\.md$/,
+    );
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
   it("compactMemory by date is a no-op when nothing is older than the cutoff", async () => {
     const dir = await makeDir();
     await seed(dir);
