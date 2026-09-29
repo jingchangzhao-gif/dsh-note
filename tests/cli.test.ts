@@ -405,6 +405,24 @@ describe("cli.mjs end to end", () => {
     await fs.rm(dir, { recursive: true, force: true });
   });
 
+  it("refuses a flag the command does not take instead of ignoring it", async () => {
+    const dir = await makeDir();
+    await runCli(["memory-add", dir, "--content", "first entry"]);
+    // A typo used to be dropped, and the command ran on its defaults anyway.
+    const typo = runCli(["memory-compact", dir, "--older-then", "2024-02-15"]);
+    await expect(typo).rejects.toMatchObject({ code: 1 });
+    await expect(typo).rejects.toThrow(/unknown flag --older-then\nusage: memory-compact/);
+    await expect(runCli(["stats", dir, "--verbose"])).rejects.toThrow(/unknown flag --verbose/);
+    // --keep and --older-than pick different entries: one of them was ignored.
+    await expect(
+      runCli(["memory-compact", dir, "--keep", "1", "--older-than", "2024-02-15"]),
+    ).rejects.toThrow(/--keep or --older-than, not both/);
+    expect(await fs.readdir(dir)).toEqual(["memory.md"]); // nothing ran, nothing archived
+    // Global flags still work everywhere.
+    expect(JSON.parse((await runCli(["stats", dir, "--json"])).stdout).files).toBe(1);
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
   it("reads content from stdin and from a UTF-8 --file", async () => {
     const dir = await makeDir();
     const src = await makeDir(); // separate folder: a .txt inside the zone would be a note

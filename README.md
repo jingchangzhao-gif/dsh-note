@@ -417,6 +417,8 @@ macOS is identical with `./run.command` instead of `run.bat`.
 Notes:
 
 - Append `--json` to any command to print the structured result.
+- A flag the command does not take is refused (`unknown flag --…`) rather than
+  ignored, so a typo cannot quietly run the command on its defaults.
 - `--zone memory` makes `list` and `search` work on `./memory` instead of
   `./notes` and hides archives, the same rule `note_list`/`note_search` apply;
   a `dir` argument still points them at any other folder.

@@ -24,30 +24,37 @@ import { dirname } from "node:path";
 const api = await import("./lib/api.js");
 
 const NAME = "dsh-note";
-const COMMANDS = new Set([
-  "list",
-  "remember",
-  "recall",
-  "write",
-  "edit",
-  "search",
-  "forget",
-  "stats",
-  "map",
-  "mindmap",
-  "links",
-  "linkmap",
-  "rename",
-  "export",
-  "import",
-  "context",
-  "memory-add",
-  "memory-recall",
-  "memory-update",
-  "memory-compact",
-  "memory-remove",
-  "help",
-]);
+
+// The flags each command reads, besides the global --json and --help. Anything
+// else is refused: an ignored flag is a silent wrong answer (`stats --zone`
+// sized ./notes before it existed; a mistyped `--older-then` compacted with
+// the defaults instead of the date).
+const COMMAND_FLAGS = {
+  help: [],
+  list: ["zone"],
+  remember: ["name", "content", "file"],
+  recall: ["name", "tail", "compact"],
+  write: ["name", "content", "file", "title", "tags", "type"],
+  edit: ["name", "old", "new", "all"],
+  // --all predates --zone; it is redundant now but kept so old calls still work.
+  search: ["query", "limit", "zone", "all"],
+  forget: ["name"],
+  stats: ["zone"],
+  map: ["chars", "zone"],
+  mindmap: ["chars", "zone", "file"],
+  links: ["name", "zone"],
+  linkmap: ["zone", "max", "file"],
+  rename: ["from", "to", "dry-run", "zone"],
+  export: ["file"],
+  import: ["file", "force"],
+  context: ["focus", "notes", "chars", "memory"],
+  "memory-add": ["content", "file", "name", "title", "tags", "type"],
+  "memory-recall": ["name", "query", "tags", "type", "newer-than", "older-than", "limit", "chars"],
+  "memory-update": ["name", "title", "tags", "type", "summary", "content", "file"],
+  "memory-compact": ["name", "keep", "older-than"],
+  "memory-remove": ["match", "name"],
+};
+const COMMANDS = new Set(Object.keys(COMMAND_FLAGS));
 
 const HELP = `dsh-note — local markdown notes + memory bank (token-free file work)
 
@@ -123,7 +130,7 @@ Content tips: quote multi-word values; use --file/- for Chinese or multiline.`;
 
 const BOOLEAN_FLAGS = new Set(["compact", "all", "json", "force", "dry-run", "help"]);
 
-function parseArgs(tokens) {
+function parseArgs(tokens, allowed) {
   const positional = [];
   const flags = {};
   const booleanFlags = BOOLEAN_FLAGS;
@@ -131,6 +138,9 @@ function parseArgs(tokens) {
     const token = tokens[i];
     if (token.startsWith("--")) {
       const key = token.slice(2);
+      if (key !== "json" && key !== "help" && !allowed.includes(key)) {
+        throw new Error(`unknown flag --${key}`);
+      }
       if (booleanFlags.has(key)) {
         flags[key] = true;
       } else {
@@ -507,6 +517,9 @@ const handlers = {
 
   async "memory-compact"({ positional, flags }) {
     const dir = zoneOf("memory", positional[0]);
+    if (flags.keep !== undefined && flags["older-than"] !== undefined) {
+      throw new Error("give --keep or --older-than, not both");
+    }
     const result = await api.compactMemory(dir, {
       name: flags.name,
       keep: numberFlag(flags, "keep", "--keep"),
@@ -635,7 +648,15 @@ async function runOnce(argv) {
   if (!COMMANDS.has(first)) {
     throw new Error(`unknown command: ${first}\n${HELP}`);
   }
-  const { positional, flags } = parseArgs(argv.slice(1));
+  let parsed;
+  try {
+    parsed = parseArgs(argv.slice(1), COMMAND_FLAGS[first]);
+  } catch (error) {
+    throw new Error(`${error.message}\nusage: ${USAGE_LINES[first] ?? "run.bat help"}`, {
+      cause: error,
+    });
+  }
+  const { positional, flags } = parsed;
   const rest = positional.slice(1);
   if (first === "search") {
     // Query words may be typed right after the directory.
