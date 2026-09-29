@@ -74,8 +74,9 @@ describe("plugin registration", () => {
       fileURLToPath(new URL("../README.md", import.meta.url)),
       "utf8",
     );
-    const block = /const COMMANDS = new Set\(\[([\s\S]*?)\]\)/.exec(cli)?.[1] ?? "";
-    const commands = [...block.matchAll(/"([^"]+)"/g)]
+    // Every command is a key of COMMAND_FLAGS (the flags it takes are the value).
+    const block = /const COMMAND_FLAGS = \{([\s\S]*?)\n\};/.exec(cli)?.[1] ?? "";
+    const commands = [...block.matchAll(/^ {2}"?([\w-]+)"?:/gm)]
       .map((match) => match[1])
       .filter((command) => command !== "help");
     expect(commands.length).toBeGreaterThan(15);

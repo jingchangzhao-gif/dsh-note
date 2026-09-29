@@ -72,6 +72,12 @@ incompatible with dsh 0.1.7-rc.2`). The surface dsh-note uses is unchanged
 - `memory_compact` and `memory_remove` on a topic that does not exist leaked
   `ENOENT: no such file or directory, open '…'`. They now say
   `Memory note not found: <name>`, as `memory_update` already did.
+- The CLI ignored flags a command does not take, so a typo ran the command on
+  its defaults: `memory-compact --older-then 2024-02-15` compacted to the
+  newest 20 entries instead of by date. Unknown flags now fail with
+  `unknown flag --…` and the usage line, and `memory-compact` refuses
+  `--keep` together with `--older-than` (it used to drop `--keep`). The old
+  `search --all` is still accepted.
 
 ## [0.4.0] - 2026-09-20
 
