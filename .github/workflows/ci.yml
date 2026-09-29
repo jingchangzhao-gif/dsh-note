@@ -31,6 +31,9 @@ jobs:
       - run: pnpm format:check
       - run: pnpm typecheck
       - run: pnpm build
+      # Installing this package is `dsh plugin add`, which packs it: the tarball
+      # must carry lib/ and the CLI, and lib/ is generated, not committed.
+      - run: node scripts/check-pack.mjs
       - run: pnpm coverage
       - run: pnpm lint
       # The launchers are the documented entry point on their own platform, and

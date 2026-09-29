@@ -125,6 +125,28 @@ specifier:
 dsh plugin --profile web add github:jingchangzhao-gif/dsh-note
 ```
 
+`lib/` is generated and git-ignored, so the install builds it through the
+package's `prepare` script. pnpm blocks dependency build scripts until they are
+allowed: `dsh` prints the exact key to put under `allowBuilds` in the profile's
+`pnpm-workspace.yaml`, then re-run the command.
+
+Prefer to build it yourself? Clone, build, and add the checkout path instead —
+that also gets you the launchers and a CLI you can run without dsh at all:
+
+```sh
+git clone https://github.com/jingchangzhao-gif/dsh-note.git
+cd dsh-note
+pnpm install
+pnpm build
+dsh plugin --profile web add "$PWD"      # the checkout path, e.g. D:\dsh-note on Windows
+```
+
+The packed tarball carries `lib/` (the plugin), `cli.mjs` (the CLI),
+`cordis.patch.yml` (bundle registration) and the docs; `scripts/check-pack.mjs`
+asserts exactly that in CI, because a git-ignored build directory is easy to
+forget. The checkout is also useful on its own: `node cli.mjs help`,
+`./run.command` on macOS, `run.bat` on Windows.
+
 The desktop app's profile is managed by the app itself: add
 `github:jingchangzhao-gif/dsh-note` from the GUI's plugin manager.
 `dsh plugin --profile desktop …` is refused — the CLI does not manage that

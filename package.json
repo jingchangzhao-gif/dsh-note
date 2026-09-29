@@ -17,6 +17,7 @@
     "format:check": "prettier --check .",
     "lint": "oxlint",
     "precoverage": "pnpm build",
+    "prepare": "pnpm build",
     "prepublishOnly": "pnpm run build",
     "pretest": "pnpm build",
     "test": "vitest run",
