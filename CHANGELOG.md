@@ -65,6 +65,9 @@ incompatible with dsh 0.1.7-rc.2`). The surface dsh-note uses is unchanged
   line carried trailing spaces, although `note_recall` read that front matter
   fine: the listing tested the mark with a stricter pattern than the parser.
   Both now apply the same test.
+- `memory_compact` and `memory_remove` on a topic that does not exist leaked
+  `ENOENT: no such file or directory, open '…'`. They now say
+  `Memory note not found: <name>`, as `memory_update` already did.
 
 ## [0.4.0] - 2026-09-20
 
