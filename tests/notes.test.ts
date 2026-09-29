@@ -140,6 +140,17 @@ describe("notes memory operations", () => {
     await fs.rm(dir, { recursive: true, force: true });
   });
 
+  it("writeNote with createOnly refuses to replace a note that exists", async () => {
+    const dir = await makeDir();
+    const first = await writeNote(dir, "draft.md", "first", {}, { createOnly: true });
+    expect(first.created).toBe(true);
+    await expect(writeNote(dir, "draft.md", "second", {}, { createOnly: true })).rejects.toThrow(
+      /^A note already exists: draft\.md \(createOnly will not replace it\)$/,
+    );
+    expect(await readNote(dir, "draft.md")).toBe("first\n"); // untouched
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
   it("editNote replaces literal text in the body only, keeping front matter", async () => {
     const dir = await makeDir();
     await writeNote(dir, "a.md", "foo bar foo\nsecond line", { title: "T", summary: "keep me" });

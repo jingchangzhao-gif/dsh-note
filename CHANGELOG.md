@@ -8,6 +8,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- `note_write` takes `createOnly`: a write meant to create a note is refused
+  when one of that name already exists, leaving it untouched, instead of
+  replacing it and reporting `created: false` after the fact. The CLI's `write`
+  takes `--create-only`.
 - `note_stats` and `stats` report the zone's tags with how many live notes
   carry each, most used first (counted case-insensitively; archives excluded).
   The tool returns the top 20 plus `moreTags`, so the model can see the tag

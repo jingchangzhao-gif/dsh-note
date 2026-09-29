@@ -192,6 +192,17 @@ describe("note tools", () => {
     await fs.rm(root, { recursive: true, force: true });
   });
 
+  it("note_write createOnly guards an existing note", async () => {
+    const root = await makeRoot();
+    await run(noteWriteTool, root, { name: "a.md", content: "one", createOnly: true });
+    await expect(
+      run(noteWriteTool, root, { name: "a.md", content: "two", createOnly: true }),
+    ).rejects.toThrow(/already exists: a\.md/);
+    const note = await readNoteFull(join(root, "notes"), "a.md");
+    expect(note.body.trim()).toBe("one");
+    await fs.rm(root, { recursive: true, force: true });
+  });
+
   it("note_write replaces the body and keeps untouched front matter", async () => {
     const root = await makeRoot();
     const created = await run<{ name: string; created: boolean }>(noteWriteTool, root, {
