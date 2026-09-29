@@ -78,7 +78,7 @@ decided: use merge commits on paired PRs
 | `note_list`      | List a zone's notes; filter by tags / type / changed since, newest first  | free |
 | `note_search`    | **Free keyword search** across writing/memory/all zones                   | free |
 | `note_forget`    | Delete a note file from either zone                                       | free |
-| `note_stats`     | Size up a zone: files, archives, entries, bytes, largest file             | free |
+| `note_stats`     | Size up a zone: files, archives, entries, bytes, largest file, tags       | free |
 | `note_map`       | **Outline** a zone: file lines + newest entry headings, under a budget    | free |
 | `note_links`     | Follow links between notes: out, back, broken, orphans, islands           | free |
 | `note_rename`    | Rename/move a note and rewrite the links that pointed at it               | free |
@@ -278,8 +278,11 @@ Returns ranked hits `{ name, title, snippet, score }`. Zero tokens.
 ```
 
 Read-only inventory of a zone: live `files`, `archives`, memory `entries`,
-total `bytes`, and the largest file (name + size). Nothing is returned to the
-model beyond these numbers, so it costs no content tokens.
+total `bytes`, the largest file (name + size), and the zone's `tags` with how
+many live notes carry each, most used first (the top 20, plus `moreTags` for
+the rest). Nothing is returned to the model beyond these numbers and names, so
+it costs no content tokens — and the tag list tells it what to filter
+`note_list` and `memory_recall` by.
 
 ### `note_map`
 
@@ -441,7 +444,7 @@ macOS is identical with `./run.command` instead of `run.bat`.
 | `edit <dir?> --name f (--old x [--all] \| --section h [--mode m]) [--new y]`  | Literal body edit, or rewrite one section                 |
 | `search <dir?> --query words [--limit N] [--zone writing\|memory]`            | Free keyword search with snippets                         |
 | `forget <dir?> --name f`                                                      | Delete a note file                                        |
-| `stats [dir] [--zone writing\|memory]`                                        | Zone inventory: files, archives, entries, bytes           |
+| `stats [dir] [--zone writing\|memory]`                                        | Zone inventory: files, archives, entries, bytes, tags     |
 | `map [dir] [--chars N] [--zone writing\|memory]`                              | Outline a zone: file lines + newest headings              |
 | `mindmap [dir] [--chars N] [--zone ...] [--file out.md]`                      | The outline as a Mermaid mind map (renders)               |
 | `links [dir] [--name <note>] [--zone writing\|memory]`                        | Follow links: out, back, broken, orphans                  |

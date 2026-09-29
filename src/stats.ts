@@ -24,6 +24,11 @@ export interface ZoneStats {
   bytes: number;
   /** biggest file in the zone, or null when it is empty */
   largest: { name: string; bytes: number } | null;
+  /**
+   * The zone's tag vocabulary: how many live notes carry each tag, most used
+   * first. Counted case-insensitively, shown in its first spelling.
+   */
+  tags: { tag: string; count: number }[];
 }
 
 /** Count files, memory entries and bytes in one zone. Never calls a model. */
@@ -34,6 +39,7 @@ export async function zoneStats(zoneDir: string): Promise<ZoneStats> {
   let entries = 0;
   let bytes = 0;
   let largest: { name: string; bytes: number } | null = null;
+  const tagCounts = new Map<string, { tag: string; count: number }>();
   for (const note of notes) {
     // listNotes already skipped anything it could not read, so this read either
     // succeeds or the file vanished mid-scan — which should be loud, not silent.
@@ -45,10 +51,29 @@ export async function zoneStats(zoneDir: string): Promise<ZoneStats> {
     } else {
       files += 1;
       entries += parseMemory(parseFrontMatter(raw).body).entries.length;
+      for (const tag of new Set(parseTagsList(note.meta.tags))) {
+        const key = tag.toLowerCase();
+        const seen = tagCounts.get(key) ?? { tag, count: 0 };
+        seen.count += 1;
+        tagCounts.set(key, seen);
+      }
     }
     if (!largest || size > largest.bytes) largest = { name: note.name, bytes: size };
   }
-  return { dir: zoneDir, files, archives, entries, bytes, largest };
+  const tags = [...tagCounts.values()].sort(
+    (a, b) => b.count - a.count || (a.tag < b.tag ? -1 : a.tag > b.tag ? 1 : 0),
+  );
+  return { dir: zoneDir, files, archives, entries, bytes, largest, tags };
+}
+
+/** Tags note_stats and `stats` show; the rest are counted as "+N more". */
+export const STATS_TAGS_SHOWN = 20;
+
+/** "tags: work (5), home (2) (+3 more)", or "" for a zone without tags. */
+export function renderTagCounts(tags: readonly { tag: string; count: number }[], more = 0): string {
+  if (tags.length === 0) return "";
+  const shown = tags.map(({ tag, count }) => `${tag} (${count})`).join(", ");
+  return `tags: ${shown}${more > 0 ? ` (+${more} more)` : ""}`;
 }
 
 /** Newest entry headings shown per file, so one huge bank file cannot eat the map. */

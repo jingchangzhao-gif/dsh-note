@@ -475,6 +475,15 @@ describe("cli.mjs end to end", () => {
     await fs.rm(dir, { recursive: true, force: true });
   });
 
+  it("stats shows the zone's tags with counts", async () => {
+    const dir = await makeDir();
+    await runCli(["write", dir, "--name", "a.md", "--content", "a", "--tags", "work, home"]);
+    await runCli(["write", dir, "--name", "b.md", "--content", "b", "--tags", "work"]);
+    const out = await runCli(["stats", dir]);
+    expect(out.stdout).toContain("\ntags: work (2), home (1)\n");
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
   it("refuses a flag the command does not take instead of ignoring it", async () => {
     const dir = await makeDir();
     await runCli(["memory-add", dir, "--content", "first entry"]);

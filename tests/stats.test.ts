@@ -11,6 +11,23 @@ async function makeDir(): Promise<string> {
 }
 
 describe("zone stats", () => {
+  it("counts tags across live notes, most used first, ignoring case", async () => {
+    const dir = await fs.mkdtemp(join(tmpdir(), "dsh-note-tags-"));
+    await writeNote(dir, "a.md", "a", { tags: "work, urgent" });
+    await writeNote(dir, "b.md", "b", { tags: "Work" });
+    await writeNote(dir, "c.md", "c", { tags: "home, urgent, work" });
+    // Archives are cold storage: their tags are not the zone's vocabulary.
+    await writeNote(dir, "c.archive.md", "old", { tags: "stale", type: "archive" });
+    await writeNote(dir, "plain.md", "no tags");
+    const stats = await zoneStats(dir);
+    expect(stats.tags).toEqual([
+      { tag: "work", count: 3 },
+      { tag: "urgent", count: 2 },
+      { tag: "home", count: 1 },
+    ]);
+    expect((await zoneStats(join(dir, "missing"))).tags).toEqual([]);
+    await fs.rm(dir, { recursive: true, force: true });
+  });
   it("counts files, bytes and the largest file of a writing zone", async () => {
     const dir = await makeDir();
     await writeNote(dir, "a.md", "small body");

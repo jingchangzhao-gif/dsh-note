@@ -8,6 +8,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- `note_stats` and `stats` report the zone's tags with how many live notes
+  carry each, most used first (counted case-insensitively; archives excluded).
+  The tool returns the top 20 plus `moreTags`, so the model can see the tag
+  vocabulary before filtering `note_list` or `memory_recall` by it.
 - `note_list` filters: `tags` (any of, any case), `type`, `since` (modified
   at/after a date), `sort: "recent"` and `limit` — so "what changed since the
   last session?" is a free listing instead of reading notes. Modification time
