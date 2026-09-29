@@ -62,6 +62,10 @@ incompatible with dsh 0.1.7-rc.2`). The surface dsh-note uses is unchanged
   counts as one) are matched, up to three names,
   in every not-found error (`note_recall`/`note_edit`, the memory tools,
   `note_links`, `note_rename`) — so a typo costs no extra listing round trip.
+- `docs/workflows.md` covers the new tools: a recipe for working inside a long
+  structured note (outline → one section → section edit), "what changed since
+  last session" via `note_list` in the resume recipe, section edits in the
+  continuation recipe, and the matching CLI rows.
 
 ### Fixed
 

@@ -42,21 +42,22 @@ continue.
 <-- free -->  note_context   { focus: "how to continue", notes: ["article.md"] }
 <-- the only paid step -->  the model proposes 3 directions plus a recommendation
 <-- free -->  note_write    { name: "article.md", content: "<chosen continuation, full text>" }  // or
-<-- free -->  note_edit     { name: "article.md", old: "<paragraph to change>", new: "<new paragraph>" }
+<-- free -->  note_edit     { name: "article.md", old: "<paragraph to change>", new: "<new paragraph>" }  // or
+<-- free -->  note_edit     { name: "article.md", section: "Next steps", mode: "append", new: "<continuation>" }
 ```
 
 Key points: once the continuation is decided, land it with `note_write`
-(full replace) or `note_edit` (targeted replace) — **pay for thinking about
-exactly the text that actually changes**.
+(full replace) or `note_edit` (targeted replace, or a whole section by its
+heading) — **pay for thinking about exactly the text that actually changes**.
 
 ## 3. Context memory (resume across sessions)
 
 Scenario: a new session continues old work; first, get yourself "back".
 
 ```text
-<-- free -->  note_stats     { zone: "memory" }    // how big is the bank before recalling it
+<-- free -->  note_stats     { zone: "memory" }    // how big is the bank, and which tags it uses
 <-- free -->  note_map       { zone: "memory" }    // outline: files + newest entry headings
-<-- free -->  note_list      { zone: "writing" }   // which writing notes exist
+<-- free -->  note_list      { since: "<last session>", sort: "recent", limit: 10 }  // what changed since
 <-- free -->  note_list      { zone: "memory" }    // which memory-bank topic files exist
 <-- free -->  memory_recall  { name: "<topic from the map>" }  // only what the map flagged
 <-- free -->  note_recall    { name: "session.md", tail: 2000 }  // most recent 2000 chars
@@ -67,7 +68,10 @@ Key points: with no arguments, `memory_recall` returns only a **recent tail**
 (default 10 entries / 4000 chars), never the whole bank — this is exactly the
 "process only a small part of the tail, not everything" constraint. `note_stats`
 reports the size first and `note_map` shows the shape, so the recall can be
-aimed at one file instead of the whole bank.
+aimed at one file instead of the whole bank. `note_list` with `since` and
+`sort: "recent"` answers "what changed since last time?" from file
+modification times — edits made in another editor included — without opening
+a single note.
 
 ## 4. Extract key facts
 
@@ -101,7 +105,26 @@ Key points: reordering means a full rewrite, and `note_write` does it in one
 call; replacing the body never touches front matter, so `title`/`tags` stay
 intact.
 
-## 6. Memory hygiene and the compact fallback
+## 6. Work inside a long structured note
+
+Scenario: a plan, spec or article has grown long, and you need to read or
+change one part of it.
+
+```text
+<-- free -->  note_recall    { name: "plan.md", outline: true }    // headings + each section's size
+<-- free -->  note_recall    { name: "plan.md", section: "Rollout" }  // just that part
+<-- the only paid step -->  the model revises the Rollout section
+<-- free -->  note_edit      { name: "plan.md", section: "Rollout", new: "<revised section body>" }
+```
+
+Key points: the outline costs a few lines however long the note is, and its
+sizes say what a section will cost before it is read. `section` returns the
+heading with its subsections; `note_edit` with `section` replaces exactly that
+span (or `append`s / `prepend`s to it), so the unchanged parts of the note are
+never sent to or from the model. A missing heading lists the ones that exist,
+so a wrong guess does not cost an extra round trip.
+
+## 7. Memory hygiene and the compact fallback
 
 Scenario A: the memory file grew too long and processing would time out /
 blow the budget — grab the compact version first:
@@ -133,7 +156,7 @@ of scenario A). The digest is read back by `memory_recall`, which shows each
 file's `summary` first — the compact view for a memory file, no zone override
 needed (`note_recall --compact` is the equivalent for writing notes).
 
-## 7. CLI equivalents (run.bat / run.command)
+## 8. CLI equivalents (run.bat / run.command)
 
 Every "free step" in the recipes above can be typed directly at the command
 line (`<notes>` is your writing folder, `<memory>` is your memory-bank
@@ -142,10 +165,11 @@ folder; on macOS replace `run.bat` with `./run.command`):
 | Tool call | Equivalent CLI |
 | --- | --- |
 | `note_remember` | `run.bat remember <notes> session.md --content "…"` |
-| `note_recall` | `run.bat recall <notes> session.md [--tail 2000 \| --compact]` |
-| `note_write` | `run.bat write <notes> article.md --file new-draft.md [--title "…"]` |
+| `note_recall` | `run.bat recall <notes> session.md [--tail 2000 \| --compact \| --outline \| --section "Setup"]` |
+| `note_write` | `run.bat write <notes> article.md --file new-draft.md [--title "…"] [--create-only]` |
 | `note_edit` | `run.bat edit <notes> session.md --old "old text" --new "new text" [--all]` |
-| `note_list` | `run.bat list <dir> [--zone memory]` |
+| `note_edit` (section) | `run.bat edit <notes> plan.md --section "Setup" [--mode append] --new "…"` |
+| `note_list` | `run.bat list <dir> [--zone memory] [--tags a,b] [--since <date> --sort recent]` |
 | `note_search` | `run.bat search <dir> <query words...> [--zone memory]` |
 | `note_forget` | `run.bat forget <dir> file.md` |
 | `note_stats` | `run.bat stats <dir>` |
@@ -172,7 +196,7 @@ PowerShell with `--content "…"`, or save the text as a UTF-8 file and pass
 `--file <path>`; if you write non-ASCII text directly inside a `.bat`, keep
 that file UTF-8 and run `chcp 65001` first.
 
-## 8. The zero-token self-check (run through before authoring any recipe)
+## 9. The zero-token self-check (run through before authoring any recipe)
 
 - [ ] Every file read/write/search/list uses the free tools — nothing goes
       through the model;
@@ -185,4 +209,6 @@ that file UTF-8 and run `chcp 65001` first.
 - [ ] Conclusions land via `memory_add` / `note_edit` / `note_write` instead
       of echoing large text back and forth in the conversation;
 - [ ] Use `note_search` instead of "read everything to find it", and drop
-      stale content with `memory_remove` / `note_forget`.
+      stale content with `memory_remove` / `note_forget`;
+- [ ] For a long structured note, read its `outline`, then one `section`, and
+      change it with `note_edit`'s `section` instead of rewriting the file.
