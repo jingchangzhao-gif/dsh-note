@@ -10,5 +10,6 @@ export * from "./view";
 export * from "./stats";
 export * from "./bundle";
 export * from "./links";
+export * from "./query";
 export * from "./rename";
 export * from "./sections";

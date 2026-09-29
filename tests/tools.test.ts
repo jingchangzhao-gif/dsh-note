@@ -160,6 +160,22 @@ describe("note tools", () => {
     await fs.rm(root, { recursive: true, force: true });
   });
 
+  it("note_list filters by tag and lists what changed recently", async () => {
+    const root = await makeRoot();
+    const notes = join(root, "notes");
+    await writeNote(notes, "a.md", "a", { tags: "work" });
+    await writeNote(notes, "b.md", "b", { tags: "home" });
+    await fs.utimes(join(notes, "a.md"), new Date("2024-01-01"), new Date("2024-01-01"));
+    type Listed = { notes: { name: string; modified?: string }[] };
+    const tagged = await run<Listed>(noteListTool, root, { tags: "work" });
+    expect(tagged.notes.map((note) => note.name)).toEqual(["a.md"]);
+    expect(tagged.notes[0].modified).toBeUndefined(); // plain listings stay as they were
+    const recent = await run<Listed>(noteListTool, root, { sort: "recent", limit: 1 });
+    expect(recent.notes.map((note) => note.name)).toEqual(["b.md"]);
+    expect(renderText(noteListTool, {}, recent)).toMatch(/- b\.md \(modified \d{4}-\d{2}-\d{2}T/);
+    await fs.rm(root, { recursive: true, force: true });
+  });
+
   it("note_list hides archives in the memory zone but shows them in writing", async () => {
     const root = await makeRoot();
     await writeNote(join(root, "notes"), "draft.md", "body");

@@ -16,9 +16,11 @@ import {
   writeNote,
   zoneRoot,
 } from "./notes";
-import type { NoteFile, Zone } from "./notes";
+import type { Zone } from "./notes";
 import { linkReport, renderLinkReport } from "./links";
 import type { LinkReport } from "./links";
+import { filterNotes } from "./query";
+import type { FilteredNote, NoteFilter } from "./query";
 import { renameNote } from "./rename";
 import { sectionMode } from "./sections";
 import { renderZoneMap, zoneMap, zoneStats } from "./stats";
@@ -45,6 +47,7 @@ const noteSummarySchema = {
     type: { type: "string" },
     tags: { type: "string" },
     updated: { type: "string" },
+    modified: { type: "string" },
   },
   additionalProperties: false,
 } as const;
@@ -56,14 +59,17 @@ interface NoteSummary {
   type?: string;
   tags?: string;
   updated?: string;
+  /** file modification time, only when a recency filter or sort was used */
+  modified?: string;
 }
 
-function toSummary(file: NoteFile): NoteSummary {
+function toSummary(file: FilteredNote): NoteSummary {
   const out: NoteSummary = { name: file.name, path: file.path };
   if (file.title) out.title = file.title;
   if (file.meta.type) out.type = file.meta.type;
   if (file.meta.tags) out.tags = file.meta.tags;
   if (file.meta.updated) out.updated = file.meta.updated;
+  if (file.modified) out.modified = file.modified;
   return out;
 }
 
@@ -158,9 +164,14 @@ export const noteRecallTool = defineTool({
 export const noteListTool = defineTool({
   name: "note_list",
   description:
-    "List the local notes of a zone (writing ./notes by default, or the long-term memory ./memory zone). Archive files (type archive) are hidden from the memory listing.",
+    "List the local notes of a zone (writing ./notes by default, or the long-term memory ./memory zone). Archive files (type archive) are hidden from the memory listing. Narrow it for free: tags (any of), type, since (modified at/after a date), sort recent (newest first) and limit — e.g. what changed since the last session.",
   parameters: {
     zone: { type: "string", description: '"writing" (default) or "memory".' },
+    tags: { type: "string", description: "Comma separated; notes carrying any of these tags." },
+    type: { type: "string", description: "Only notes whose front matter type equals this." },
+    since: { type: "string", description: "Only notes modified at/after this date (ISO)." },
+    sort: { type: "string", description: '"name" (default) or "recent" (newest first).' },
+    limit: { type: "number", description: "Max notes to return (1-1000)." },
     dir: { type: "string", description: "Optional directory override for the selected zone." },
   },
   output: {
@@ -177,19 +188,34 @@ export const noteListTool = defineTool({
       const v = value as { zone?: string; dir?: string; notes?: NoteSummary[] };
       const lines = [`Notes [${v.zone ?? "writing"}] in ${v.dir ?? "?"}:`];
       for (const note of v.notes ?? []) {
-        lines.push(`- ${note.name}${note.title ? ` — ${note.title}` : ""}`);
+        const modified = note.modified ? ` (modified ${note.modified})` : "";
+        lines.push(`- ${note.name}${note.title ? ` — ${note.title}` : ""}${modified}`);
       }
       return [{ type: "text", text: lines.join("\n") }];
     },
   },
   async execute(args, exec) {
-    const { zone: zoneValue, dir } = (args ?? {}) as Record<string, unknown>;
+    const {
+      zone: zoneValue,
+      tags,
+      type,
+      since,
+      sort,
+      limit,
+      dir,
+    } = (args ?? {}) as Record<string, unknown>;
     const zone = zoneArg(zoneValue, "writing");
     const root = zoneDir(zone, cwdOf(exec as ExecShape | undefined), text(dir));
     const all = await listNotes(root);
     // The memory zone hides archives; the writing zone shows everything.
-    const notes = visibleOnly(all, zone !== "memory").map(toSummary);
-    return { zone, dir: root, notes };
+    const filtered = await filterNotes(visibleOnly(all, zone !== "memory"), {
+      tags: text(tags),
+      type: text(type),
+      since: text(since),
+      sort: text(sort) as NoteFilter["sort"],
+      limit: number(limit),
+    });
+    return { zone, dir: root, notes: filtered.map(toSummary) };
   },
 });
 

@@ -8,6 +8,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- `note_list` filters: `tags` (any of, any case), `type`, `since` (modified
+  at/after a date), `sort: "recent"` and `limit` — so "what changed since the
+  last session?" is a free listing instead of reading notes. Modification time
+  is the file's mtime, reported as `modified` when a recency filter is used.
+  The CLI's `list` takes `--tags`, `--type`, `--since`, `--sort` and `--limit`.
 - `note_edit` section mode: `section: "<heading>"` with `new` and `mode`
   (`replace` by default, `append` or `prepend`) rewrites one section without
   quoting its old text — the edit side of `note_recall`'s `section`. The CLI

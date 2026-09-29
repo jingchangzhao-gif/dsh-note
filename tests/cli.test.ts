@@ -451,6 +451,30 @@ describe("cli.mjs end to end", () => {
     await fs.rm(dir, { recursive: true, force: true });
   });
 
+  it("lists notes filtered by tag, type and recency", async () => {
+    const dir = await makeDir();
+    await runCli([
+      "write",
+      dir,
+      "--name",
+      "a.md",
+      "--content",
+      "a",
+      "--tags",
+      "work",
+      "--type",
+      "plan",
+    ]);
+    await runCli(["write", dir, "--name", "b.md", "--content", "b", "--tags", "home"]);
+    await fs.utimes(join(dir, "a.md"), new Date("2024-01-01"), new Date("2024-01-01"));
+    const tagged = await runCli(["list", dir, "--tags", "work", "--type", "plan"]);
+    expect(tagged.stdout).toBe(`Notes in ${dir} (1):\n- a.md [plan] tags: work\n`);
+    const recent = await runCli(["list", dir, "--since", "2024-06-01", "--sort", "recent"]);
+    expect(recent.stdout).toMatch(/\(1\):\n- b\.md tags: home \(modified \d{4}-/);
+    await expect(runCli(["list", dir, "--limit", "0"])).resolves.toBeDefined();
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
   it("refuses a flag the command does not take instead of ignoring it", async () => {
     const dir = await makeDir();
     await runCli(["memory-add", dir, "--content", "first entry"]);
