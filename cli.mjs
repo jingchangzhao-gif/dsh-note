@@ -18,7 +18,7 @@
 // Long text values travel safely as flags; for Chinese/multiline content use
 // --file <path> or pass - as --content to read UTF-8 from stdin.
 
-import { readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import { dirname } from "node:path";
 
 const api = await import("./lib/api.js");
@@ -129,6 +129,7 @@ Commands (dir defaults to ./notes, or ./memory for memory-*):
 Convenience: the file name may be typed right after the directory —
   recall C:\notes session.md        (same as --name session.md)
   search C:\notes pnpm merge        (query words may follow the directory)
+  recall session.md                 (alone, a note file is the note in ./notes)
 
 Add --json to print the structured result instead of plain text.
 Content tips: quote multi-word values; use --file/- for Chinese or multiline.`;
@@ -159,6 +160,14 @@ function parseArgs(tokens, allowed) {
     }
   }
   return { positional, flags };
+}
+
+async function isDirectory(path) {
+  try {
+    return (await stat(path)).isDirectory();
+  } catch {
+    return false;
+  }
 }
 
 function numberFlag(flags, key, label) {
@@ -682,6 +691,17 @@ async function runOnce(argv) {
     });
   }
   const { positional, flags } = parsed;
+  // `recall plan.md`: a lone note file name is the note in the default folder,
+  // not a folder called plan.md — unless such a folder really exists.
+  if (
+    NAME_POSITIONAL_COMMANDS.has(first) &&
+    positional.length === 1 &&
+    flags.name === undefined &&
+    api.isNoteExt(positional[0]) &&
+    !(await isDirectory(positional[0]))
+  ) {
+    flags.name = positional.pop();
+  }
   const rest = positional.slice(1);
   if (first === "search") {
     // Query words may be typed right after the directory.

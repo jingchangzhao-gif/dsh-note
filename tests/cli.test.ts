@@ -484,6 +484,21 @@ describe("cli.mjs end to end", () => {
     await fs.rm(dir, { recursive: true, force: true });
   });
 
+  it("reads a lone note file name as the note in the default folder", async () => {
+    const root = await makeDir();
+    await runCli(["write", "--name", "plan.md", "--content", "# Plan\n\n## Setup\n\nx"], root);
+    // `recall plan.md` used to take plan.md for the folder and ask for --name.
+    const outline = await runCli(["recall", "plan.md", "--outline"], root);
+    expect(outline.stdout).toMatch(/^# Plan \(/);
+    await runCli(["memory-add", "--content", "entry", "--name", "topic.md"], root);
+    const recalled = await runCli(["memory-recall", "topic.md"], root);
+    expect(recalled.stdout).toContain("entry");
+    // A folder that happens to end in .md is still a folder.
+    await fs.mkdir(join(root, "box.md"));
+    await expect(runCli(["recall", "box.md"], root)).rejects.toThrow(/missing --name/);
+    await fs.rm(root, { recursive: true, force: true });
+  });
+
   it("refuses a flag the command does not take instead of ignoring it", async () => {
     const dir = await makeDir();
     await runCli(["memory-add", dir, "--content", "first entry"]);

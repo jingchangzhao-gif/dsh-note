@@ -111,6 +111,10 @@ incompatible with dsh 0.1.7-rc.2`). The surface dsh-note uses is unchanged
   such notes meanwhile, and `tags: [coffee, brewing]` read as one tag. Block
   lists (any key) and flow lists (`tags`, `aliases`, `alias`) now read as the
   usual comma list and are written back in their original style.
+- `recall plan.md` (a note file name with no folder) took `plan.md` for the
+  folder and failed with `missing --name`. A lone argument ending in
+  `.md`/`.markdown`/`.txt` is now the note in the default folder, for every
+  command that takes a file name, unless a folder of that name exists.
 
 ## [0.4.0] - 2026-09-20
 
