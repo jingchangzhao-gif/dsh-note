@@ -95,4 +95,51 @@ describe("front matter", () => {
     // A value we wrote ourselves carries the escaped break, so it is revived.
     expect(parseFrontMatter('---\ntitle: "two\\nlines"\n---\nbody').meta.title).toBe("two\nlines");
   });
+
+  it("reads YAML list values, the way Obsidian and basic-memory write them", () => {
+    const text = [
+      "---",
+      "title: Coffee",
+      "tags:",
+      "  - coffee",
+      "  - brewing",
+      "aliases: [Joe, 'java', \"brew\"]",
+      "related:",
+      "- beans", // a block list may start at column 0, and under any key
+      "cssclasses: [wide, dark]", // flow form only where dsh-note reads a list
+      "empty:",
+      "---",
+      "body",
+    ].join("\n");
+    const parsed = parseFrontMatter(text);
+    expect(parsed.meta).toEqual({
+      title: "Coffee",
+      tags: "coffee, brewing",
+      aliases: "Joe, java, brew",
+      related: "beans",
+      cssclasses: "[wide, dark]",
+      empty: "",
+    });
+    expect(parseTagsList(parsed.meta.tags)).toEqual(["coffee", "brewing"]);
+    expect(parsed.lists).toEqual({ tags: "block", aliases: "flow", related: "block" });
+  });
+
+  it("writes a list back in the style it was read, so a rewrite loses nothing", () => {
+    const text = "---\ntitle: T\ntags:\n  - a\n  - b\naliases: [x, y]\n---\nbody\n";
+    const parsed = parseFrontMatter(text);
+    expect(withFrontMatter(parsed.meta, parsed.body, parsed.lists)).toBe(text);
+    // A patched list keeps its style, and dsh-note's own comma values stay plain.
+    const patched = { ...parsed.meta, tags: "a, b, c", plain: "p, q" };
+    expect(renderFrontMatter(patched, parsed.lists)).toBe(
+      "---\ntitle: T\ntags:\n  - a\n  - b\n  - c\naliases: [x, y]\nplain: p, q\n---\n",
+    );
+  });
+
+  it("re-quotes a list item that YAML would read differently bare", () => {
+    const text =
+      '---\ntags:\n  - "#urgent"\n  - "a: b"\n  - plain\naliases: ["#x", y]\n---\nbody\n';
+    const parsed = parseFrontMatter(text);
+    expect(parsed.meta.tags).toBe("#urgent, a: b, plain");
+    expect(withFrontMatter(parsed.meta, parsed.body, parsed.lists)).toBe(text);
+  });
 });

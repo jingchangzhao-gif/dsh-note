@@ -106,7 +106,7 @@ export async function renameNote(
       plans.push({
         name: note.name,
         path: note.path,
-        text: fm.hasFrontMatter ? withFrontMatter(fm.meta, body) : `${body.trimEnd()}\n`,
+        text: fm.hasFrontMatter ? withFrontMatter(fm.meta, body, fm.lists) : `${body.trimEnd()}\n`,
         count,
       });
     }
