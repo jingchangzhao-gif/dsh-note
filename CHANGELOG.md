@@ -30,6 +30,18 @@ incompatible with dsh 0.1.7-rc.2`). The surface dsh-note uses is unchanged
 
 ### Fixed
 
+- Installation instructions: they said `dsh plugin --profile web add dsh-note`,
+  but that forwards to `pnpm` and the package is not on the npm registry, so it
+  could not work. The README now documents the checkout path (and the git path,
+  with pnpm's build approval caveat).
+- `prepare: pnpm build`, so a plugin installed from git builds `lib/` on install
+  instead of arriving without it (the directory is git-ignored; pnpm runs
+  `prepare` for git-hosted dependencies, and blocks it until `allowBuilds`
+  approves it).
+- `scripts/check-pack.mjs`, run in CI, fails if the tarball is missing
+  `lib/index.js`, `lib/api.js`, `cli.mjs`, `cordis.patch.yml` or
+  `package.json`.
+
 - Links inside inline `` `code` `` spans are not links: a `[[note]]` shown as an
   example no longer counts as a broken link, and a rename no longer rewrites it.
 - `memory_recall` puts a blank line between one file's section and the next;
