@@ -116,6 +116,9 @@ incompatible with dsh 0.1.7-rc.2`). The surface dsh-note uses is unchanged
   such notes meanwhile, and `tags: [coffee, brewing]` read as one tag. Block
   lists (any key) and flow lists (`tags`, `aliases`, `alias`) now read as the
   usual comma list and are written back in their original style.
+- `dsh-note help` printed its Windows examples broken across lines
+  (`recall C:` then `otes session.md`): the `\n` in `C:\notes` inside the
+  help template was a newline escape. The backslash is escaped now.
 - `recall plan.md` (a note file name with no folder) took `plan.md` for the
   folder and failed with `missing --name`. A lone argument ending in
   `.md`/`.markdown`/`.txt` is now the note in the default folder, for every

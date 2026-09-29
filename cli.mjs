@@ -128,8 +128,8 @@ Commands (dir defaults to ./notes, or ./memory for memory-*):
       Show this help.
 
 Convenience: the file name may be typed right after the directory —
-  recall C:\notes session.md        (same as --name session.md)
-  search C:\notes pnpm merge        (query words may follow the directory)
+  recall C:\\notes session.md        (same as --name session.md)
+  search C:\\notes pnpm merge        (query words may follow the directory)
   recall session.md                 (alone, a note file is the note in ./notes)
 
 Add --json to print the structured result instead of plain text.
