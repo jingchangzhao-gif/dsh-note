@@ -216,6 +216,9 @@ Use at most one of `tail`, `compact`, `section`, `outline`.
 ```
 
 Replaces the whole body; front matter keys given merge in, others are kept.
+When writing a _new_ note, pass `"createOnly": true`: if a note of that name
+already exists the write is refused and the existing note left untouched,
+instead of being replaced and reported as `created: false` afterwards.
 
 ### `note_edit`
 
@@ -435,29 +438,29 @@ run.bat memory-compact "D:\memory" --name decisions.md --keep 20
 
 macOS is identical with `./run.command` instead of `run.bat`.
 
-| Command                                                                       | What it does                                              |
-| ----------------------------------------------------------------------------- | --------------------------------------------------------- |
-| `list [dir] [--zone …] [--tags] [--type] [--since] [--sort recent] [--limit]` | List notes, optionally filtered and newest first          |
-| `remember <dir?> --name f [--content \| --file \| -]`                         | Append a block (create if missing)                        |
-| `recall <dir?> --name f [--tail N \| --compact \| --section h \| --outline]`  | Full text, tail, compact view, one section or the outline |
-| `write <dir?> --name f (--content \| --file) [--title/--tags/--type]`         | Fully replace the body                                    |
-| `edit <dir?> --name f (--old x [--all] \| --section h [--mode m]) [--new y]`  | Literal body edit, or rewrite one section                 |
-| `search <dir?> --query words [--limit N] [--zone writing\|memory]`            | Free keyword search with snippets                         |
-| `forget <dir?> --name f`                                                      | Delete a note file                                        |
-| `stats [dir] [--zone writing\|memory]`                                        | Zone inventory: files, archives, entries, bytes, tags     |
-| `map [dir] [--chars N] [--zone writing\|memory]`                              | Outline a zone: file lines + newest headings              |
-| `mindmap [dir] [--chars N] [--zone ...] [--file out.md]`                      | The outline as a Mermaid mind map (renders)               |
-| `links [dir] [--name <note>] [--zone writing\|memory]`                        | Follow links: out, back, broken, orphans                  |
-| `linkmap [dir] [--zone ...] [--max N] [--file out.md]`                        | The link graph as a Mermaid flowchart                     |
-| `rename [dir] --from <old> --to <new> [--dry-run]`                            | Move a note and rewrite the links into it                 |
-| `export <dir?> --file f.json`                                                 | Snapshot the whole folder into one JSON file              |
-| `import <dir?> --file f.json [--force]`                                       | Write a snapshot back (skips existing files)              |
-| `context <dir?> [--focus q] [--notes a,b] [--memory <dir>]`                   | Assemble a small bounded context packet                   |
-| `memory-add <dir?> (--content \| --file) [--name] [--tags] [--type]`          | Append a timestamped bank entry                           |
-| `memory-recall <dir?> [--query] [--tags] [--type] [--limit] [--chars]`        | Recall the recent/relevant small chunk                    |
-| `memory-update <dir?> [--summary etc.] [--content \| --file]`                 | Merge front matter / append entry                         |
-| `memory-compact <dir?> [--name] [--keep N \| --older-than date]`              | Move older entries to `*.archive.md`                      |
-| `memory-remove <dir?> --match text [--name]`                                  | Delete matching entries                                   |
+| Command                                                                               | What it does                                              |
+| ------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `list [dir] [--zone …] [--tags] [--type] [--since] [--sort recent] [--limit]`         | List notes, optionally filtered and newest first          |
+| `remember <dir?> --name f [--content \| --file \| -]`                                 | Append a block (create if missing)                        |
+| `recall <dir?> --name f [--tail N \| --compact \| --section h \| --outline]`          | Full text, tail, compact view, one section or the outline |
+| `write <dir?> --name f (--content \| --file) [--title/--tags/--type] [--create-only]` | Fully replace the body (or only create)                   |
+| `edit <dir?> --name f (--old x [--all] \| --section h [--mode m]) [--new y]`          | Literal body edit, or rewrite one section                 |
+| `search <dir?> --query words [--limit N] [--zone writing\|memory]`                    | Free keyword search with snippets                         |
+| `forget <dir?> --name f`                                                              | Delete a note file                                        |
+| `stats [dir] [--zone writing\|memory]`                                                | Zone inventory: files, archives, entries, bytes, tags     |
+| `map [dir] [--chars N] [--zone writing\|memory]`                                      | Outline a zone: file lines + newest headings              |
+| `mindmap [dir] [--chars N] [--zone ...] [--file out.md]`                              | The outline as a Mermaid mind map (renders)               |
+| `links [dir] [--name <note>] [--zone writing\|memory]`                                | Follow links: out, back, broken, orphans                  |
+| `linkmap [dir] [--zone ...] [--max N] [--file out.md]`                                | The link graph as a Mermaid flowchart                     |
+| `rename [dir] --from <old> --to <new> [--dry-run]`                                    | Move a note and rewrite the links into it                 |
+| `export <dir?> --file f.json`                                                         | Snapshot the whole folder into one JSON file              |
+| `import <dir?> --file f.json [--force]`                                               | Write a snapshot back (skips existing files)              |
+| `context <dir?> [--focus q] [--notes a,b] [--memory <dir>]`                           | Assemble a small bounded context packet                   |
+| `memory-add <dir?> (--content \| --file) [--name] [--tags] [--type]`                  | Append a timestamped bank entry                           |
+| `memory-recall <dir?> [--query] [--tags] [--type] [--limit] [--chars]`                | Recall the recent/relevant small chunk                    |
+| `memory-update <dir?> [--summary etc.] [--content \| --file]`                         | Merge front matter / append entry                         |
+| `memory-compact <dir?> [--name] [--keep N \| --older-than date]`                      | Move older entries to `*.archive.md`                      |
+| `memory-remove <dir?> --match text [--name]`                                          | Delete matching entries                                   |
 
 Notes:
 

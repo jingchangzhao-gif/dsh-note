@@ -499,6 +499,16 @@ describe("cli.mjs end to end", () => {
     await fs.rm(root, { recursive: true, force: true });
   });
 
+  it("write --create-only refuses to replace an existing note", async () => {
+    const dir = await makeDir();
+    await runCli(["write", dir, "--name", "a.md", "--content", "one", "--create-only"]);
+    await expect(
+      runCli(["write", dir, "--name", "a.md", "--content", "two", "--create-only"]),
+    ).rejects.toThrow(/already exists: a\.md/);
+    expect((await runCli(["recall", dir, "a.md"])).stdout.trim()).toBe("one");
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
   it("refuses a flag the command does not take instead of ignoring it", async () => {
     const dir = await makeDir();
     await runCli(["memory-add", dir, "--content", "first entry"]);

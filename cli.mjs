@@ -34,7 +34,7 @@ const COMMAND_FLAGS = {
   list: ["zone", "tags", "type", "since", "sort", "limit"],
   remember: ["name", "content", "file"],
   recall: ["name", "tail", "compact", "section", "outline"],
-  write: ["name", "content", "file", "title", "tags", "type"],
+  write: ["name", "content", "file", "title", "tags", "type", "create-only"],
   edit: ["name", "old", "new", "all", "section", "mode"],
   // --all predates --zone; it is redundant now but kept so old calls still work.
   search: ["query", "limit", "zone", "all"],
@@ -76,6 +76,7 @@ Commands (dir defaults to ./notes, or ./memory for memory-*):
       section = one heading's section, outline = headings with section sizes.
   write <dir?> --name <file> (--content <text> | --file <path> | --content -)
       Replace a note's whole body; optional --title/--tags/--type.
+      --create-only refuses instead of replacing a note that already exists.
   edit <dir?> --name <file> --old <text> [--new <text>] [--all]
       Literal in-place body edit (front matter is never matched).
   edit <dir?> --name <file> --section <heading> [--mode replace|append|prepend] --new <text>
@@ -134,7 +135,16 @@ Convenience: the file name may be typed right after the directory —
 Add --json to print the structured result instead of plain text.
 Content tips: quote multi-word values; use --file/- for Chinese or multiline.`;
 
-const BOOLEAN_FLAGS = new Set(["compact", "outline", "all", "json", "force", "dry-run", "help"]);
+const BOOLEAN_FLAGS = new Set([
+  "compact",
+  "outline",
+  "all",
+  "json",
+  "force",
+  "dry-run",
+  "create-only",
+  "help",
+]);
 
 function parseArgs(tokens, allowed) {
   const positional = [];
@@ -282,7 +292,9 @@ const handlers = {
     for (const key of ["title", "tags", "type"]) {
       if (flags[key] !== undefined) patch[key] = flags[key];
     }
-    const result = await api.writeNote(dir, name, body, patch);
+    const result = await api.writeNote(dir, name, body, patch, {
+      createOnly: Boolean(flags["create-only"]),
+    });
     if (flags.json) return { json: result };
     return { text: `Wrote ${result.name} (${result.created ? "created" : "updated"})` };
   },
@@ -618,7 +630,7 @@ const USAGE_LINES = {
   list: "list [dir] [--zone writing|memory] [--tags a,b] [--type t] [--since date] [--sort name|recent] [--limit N]",
   remember: 'remember [dir] <file> --content "text" | --file <path>',
   recall: "recall [dir] <file> [--tail N | --compact | --section heading | --outline]",
-  write: "write [dir] <file> (--content | --file <path>) [--title/--tags/--type]",
+  write: "write [dir] <file> (--content | --file <path>) [--title/--tags/--type] [--create-only]",
   edit: 'edit [dir] <file> (--old "text" [--all] | --section heading [--mode m]) [--new "text"]',
   search: "search [dir] <query words...> [--limit N] [--zone writing|memory]",
   forget: "forget [dir] <file>",

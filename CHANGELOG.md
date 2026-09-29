@@ -8,6 +8,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- `note_write` takes `createOnly`: a write meant to create a note is refused
+  when one of that name already exists, leaving it untouched, instead of
+  replacing it and reporting `created: false` after the fact. The CLI's `write`
+  takes `--create-only`.
 - `note_stats` and `stats` report the zone's tags with how many live notes
   carry each, most used first (counted case-insensitively; archives excluded).
   The tool returns the top 20 plus `moreTags`, so the model can see the tag
@@ -54,7 +58,8 @@ incompatible with dsh 0.1.7-rc.2`). The surface dsh-note uses is unchanged
   declared peers are listed with the versions they were verified against.
 - A missing note suggests the ones that were probably meant:
   `Note not found: sesion.md (did you mean session.md?)`. Case, extension and
-  folder differences, prefixes and small typos are matched, up to three names,
+  folder differences, prefixes and small typos (a swapped pair of letters
+  counts as one) are matched, up to three names,
   in every not-found error (`note_recall`/`note_edit`, the memory tools,
   `note_links`, `note_rename`) — so a typo costs no extra listing round trip.
 

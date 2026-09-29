@@ -18,6 +18,11 @@ describe("did you mean", () => {
     expect(suggestNames("a", many)).toEqual(["a1.md", "a2.md", "a3.md"]);
   });
 
+  it("counts swapped letters as one typo, the most common kind", () => {
+    expect(suggestNames("todya", NAMES)).toEqual(["log/today.md"]);
+    expect(suggestNames("sesison", NAMES)).toEqual(["session.md"]);
+  });
+
   it("suggests nothing for an unrelated name", () => {
     expect(suggestNames("zebra", NAMES)).toEqual([]);
     expect(notFoundHint("zebra", NAMES)).toBe("");
