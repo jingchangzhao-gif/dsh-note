@@ -170,6 +170,25 @@ describe("memory bank", () => {
     await fs.rm(dir, { recursive: true, force: true });
   });
 
+  it("compactMemory archives a nested topic beside it, not into a shared root file", async () => {
+    const dir = await makeDir();
+    const when = (day: string) => new Date(`${day}T00:00:00Z`).toISOString();
+    for (const topic of ["a/decisions.md", "b/decisions.md"]) {
+      await addMemoryEntry(dir, `${topic} old`, { name: topic, when: when("2024-01-01") });
+      await addMemoryEntry(dir, `${topic} new`, { name: topic, when: when("2024-02-01") });
+    }
+    const a = await compactMemory(dir, { name: "a/decisions.md", keep: 1 });
+    const b = await compactMemory(dir, { name: "b/decisions.md", keep: 1 });
+    expect(a.archive).toBe("a/decisions.archive.md");
+    expect(b.archive).toBe("b/decisions.archive.md");
+    // Same basename, different topics: each archive holds only its own entries.
+    const archiveA = await readNoteFull(dir, "a/decisions.archive.md");
+    expect(archiveA.body).toContain("a/decisions.md old");
+    expect(archiveA.body).not.toContain("b/decisions.md");
+    await expect(fs.access(join(dir, "decisions.archive.md"))).rejects.toThrow();
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
   it("removeMemoryEntries deletes entries by literal match", async () => {
     const dir = await makeDir();
     await seed(dir);

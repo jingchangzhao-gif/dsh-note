@@ -30,6 +30,12 @@ incompatible with dsh 0.1.7-rc.2`). The surface dsh-note uses is unchanged
 
 ### Fixed
 
+- `memory_compact` on a nested topic wrote its archive at the zone root, not
+  beside the topic as documented: `a/decisions.md` archived into
+  `decisions.archive.md`, and compacting `b/decisions.md` then appended its
+  entries to that same file. The archive is now `a/decisions.archive.md`.
+  Archives already written at the root stay where they are and stay hidden
+  from recalls (`type: archive`); new compactions use the sibling path.
 - Installation instructions: they said `dsh plugin --profile web add dsh-note`,
   but that forwards to `pnpm` and the package is not on the npm registry, so it
   could not work. The README now documents the checkout path (and the git path,
