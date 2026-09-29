@@ -139,6 +139,9 @@ describe("cli.mjs end to end", () => {
     expect(found.stdout).toContain("h.md");
     const asked = await runCli(["help"]);
     expect(asked.stdout).toContain("Usage:");
+    // The Windows examples: `\n` inside the help template once printed C: <newline> otes.
+    expect(asked.stdout).toContain("  recall C:\\notes session.md ");
+    expect(asked.stdout).toContain("  search C:\\notes pnpm merge ");
     const flagged = await runCli(["list", dir, "--help"]);
     expect(flagged.stdout).toContain("Usage:");
     await fs.rm(dir, { recursive: true, force: true });
