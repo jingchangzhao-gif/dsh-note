@@ -23,7 +23,7 @@ import { filterNotes } from "./query";
 import type { FilteredNote, NoteFilter } from "./query";
 import { renameNote } from "./rename";
 import { sectionMode } from "./sections";
-import { renderZoneMap, zoneMap, zoneStats } from "./stats";
+import { renderTagCounts, renderZoneMap, STATS_TAGS_SHOWN, zoneMap, zoneStats } from "./stats";
 import type { ZoneMap } from "./stats";
 import { booleanOf, cwdOf, number, text, type ExecShape } from "./tool-util";
 import { clampSearchLimit, recallView, visibleOnly } from "./view";
@@ -463,7 +463,7 @@ export const noteForgetTool = defineTool({
 export const noteStatsTool = defineTool({
   name: "note_stats",
   description:
-    "Size up a zone for free before recalling: live file count, archive count, memory entry count, total bytes and the largest file. Use it to choose how much to recall, or to see whether compacting the bank would pay off.",
+    "Size up a zone for free before recalling: live file count, archive count, memory entry count, total bytes, the largest file, and the most used tags with their note counts. Use it to choose how much to recall, which tags to filter note_list/memory_recall by, or whether compacting the bank would pay off.",
   parameters: {
     zone: { type: "string", description: '"writing" (default) or "memory".' },
     dir: { type: "string", description: "Optional directory override for the selected zone." },
@@ -480,11 +480,22 @@ export const noteStatsTool = defineTool({
         bytes: { type: "number" },
         largestName: { type: "string" },
         largestBytes: { type: "number" },
+        tags: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: { tag: { type: "string" }, count: { type: "number" } },
+            additionalProperties: false,
+          },
+        },
+        moreTags: { type: "number" },
       },
       additionalProperties: false,
     },
     render: (_args, value) => {
       const v = value as {
+        tags?: { tag: string; count: number }[];
+        moreTags?: number;
         zone?: string;
         dir?: string;
         files?: number;
@@ -501,6 +512,8 @@ export const noteStatsTool = defineTool({
         `bytes: ${v.bytes ?? 0}`,
       ];
       if (v.largestName) lines.push(`largest: ${v.largestName} (${v.largestBytes ?? 0} bytes)`);
+      const tagLine = renderTagCounts(v.tags ?? [], v.moreTags ?? 0);
+      if (tagLine) lines.push(tagLine);
       return [{ type: "text", text: lines.join("\n") }];
     },
   },
@@ -518,6 +531,8 @@ export const noteStatsTool = defineTool({
       bytes: stats.bytes,
       largestName: stats.largest?.name ?? "",
       largestBytes: stats.largest?.bytes ?? 0,
+      tags: stats.tags.slice(0, STATS_TAGS_SHOWN),
+      moreTags: Math.max(0, stats.tags.length - STATS_TAGS_SHOWN),
     };
   },
 });

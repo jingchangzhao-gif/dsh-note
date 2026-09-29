@@ -300,6 +300,24 @@ describe("note tools", () => {
     await fs.rm(root, { recursive: true, force: true });
   });
 
+  it("note_stats lists the zone's tags with counts, capped for the model", async () => {
+    const root = await makeRoot();
+    const notes = join(root, "notes");
+    for (let i = 0; i < 23; i += 1) {
+      await writeNote(notes, `n${i}.md`, "x", { tags: `t${String(i).padStart(2, "0")}, common` });
+    }
+    const stats = await run<{ tags: { tag: string; count: number }[]; moreTags: number }>(
+      noteStatsTool,
+      root,
+    );
+    expect(stats.tags[0]).toEqual({ tag: "common", count: 23 });
+    expect(stats.tags).toHaveLength(20);
+    expect(stats.moreTags).toBe(4); // 24 distinct tags, 20 shown
+    const text = renderText(noteStatsTool, {}, stats);
+    expect(text).toMatch(/^tags: common \(23\), t00 \(1\), .* \(\+4 more\)$/m);
+    await fs.rm(root, { recursive: true, force: true });
+  });
+
   it("note_stats sizes a zone and renders the numbers", async () => {
     const root = await makeRoot();
     await addMemoryEntry(join(root, "memory"), "an entry", { name: "m.md" });

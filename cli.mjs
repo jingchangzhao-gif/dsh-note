@@ -339,6 +339,9 @@ const handlers = {
     if (result.largest) {
       lines.push(`largest: ${result.largest.name} (${result.largest.bytes} bytes)`);
     }
+    const shown = result.tags.slice(0, api.STATS_TAGS_SHOWN);
+    const tagLine = api.renderTagCounts(shown, result.tags.length - shown.length);
+    if (tagLine) lines.push(tagLine);
     return { text: lines.join("\n") };
   },
 
