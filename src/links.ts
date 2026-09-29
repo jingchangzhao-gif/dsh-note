@@ -18,6 +18,7 @@ import { promises as fs } from "node:fs";
 import { parseFrontMatter, parseTagsList } from "./frontmatter";
 import { clampInt } from "./memory";
 import { isArchive, listNotes } from "./notes";
+import { notFoundHint } from "./suggest";
 
 const WIKILINK_RE = /\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/g;
 // `(<target with spaces>)` is the markdown form for targets that contain them.
@@ -363,7 +364,8 @@ export function buildLinkGraph(
   const want = focus?.trim();
   if (want) {
     const name = resolveLinkTarget(want, names, aliases);
-    if (!name) throw new Error(`Note not found in this zone: ${want}`);
+    if (!name)
+      throw new Error(`Note not found in this zone: ${want}${notFoundHint(want, [...names])}`);
     report.note = {
       name,
       out: out.get(name) ?? [],
