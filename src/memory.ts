@@ -363,7 +363,11 @@ export async function compactMemory(
     }
   } else {
     const keep = clampInt(options.keep, 20, 1, 10_000);
-    removed = parsed.entries.slice(0, Math.max(0, parsed.entries.length - keep));
+    // "Newest" means by date, the order recall uses: a backfilled entry sits
+    // last in the file but is the oldest. The sort is stable, so same-time
+    // entries keep their file order.
+    const oldestFirst = [...parsed.entries].sort((a, b) => a.whenMs - b.whenMs);
+    removed = oldestFirst.slice(0, Math.max(0, oldestFirst.length - keep));
   }
   if (removed.length === 0) {
     return { name, path, kept: parsed.entries.length, archived: 0, archive: "" };
