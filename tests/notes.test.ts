@@ -185,6 +185,17 @@ describe("notes memory operations", () => {
     await fs.rm(dir, { recursive: true, force: true });
   });
 
+  it("lists the front matter the parser reads, even with a padded opening mark", async () => {
+    const dir = await makeDir();
+    // Editors leave trailing spaces; parseFrontMatter trims the mark line.
+    await fs.writeFile(join(dir, "padded.md"), "--- \ntitle: Padded\ntags: x\n---\nbody\n");
+    const [note] = await listNotes(dir);
+    expect(note.title).toBe("Padded");
+    expect(note.meta).toEqual({ title: "Padded", tags: "x" });
+    expect((await readNoteFull(dir, "padded.md")).meta).toEqual(note.meta);
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
   it("lists a CJK note whose head cut splits a multi-byte character", async () => {
     const dir = await makeDir();
     // 3-byte characters: the 16 KiB head chunk lands mid-character, which is
