@@ -234,6 +234,14 @@ describe("memory bank", () => {
     await fs.rm(dir, { recursive: true, force: true });
   });
 
+  it("refuses a hidden memory topic name", async () => {
+    const dir = await makeDir();
+    await expect(addMemoryEntry(dir, "x", { name: ".secret.md" })).rejects.toThrow(
+      /cannot start with a dot/,
+    );
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
   it("updateMemoryMeta fails clearly when the file is missing", async () => {
     const dir = await makeDir();
     await expect(updateMemoryMeta(dir, "nope.md", { summary: "x" })).rejects.toThrow(/not found/);

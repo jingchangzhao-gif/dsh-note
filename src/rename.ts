@@ -16,6 +16,7 @@ import {
   ensureDir,
   isArchive,
   listNotes,
+  newNotePath,
   notePath,
   writeTextFile,
   zoneRelativeName,
@@ -79,7 +80,7 @@ export async function renameNote(
   if (!oldName)
     throw new Error(`Note not found in this zone: ${from}${notFoundHint(from, [...names])}`);
 
-  const newPath = notePath(zoneDir, to); // validates the name and blocks escapes
+  const newPath = newNotePath(zoneDir, to); // validates the name, blocks escapes and hidden names
   const newName = zoneRelativeName(zoneDir, newPath);
   // Same name: nothing to move, nothing to rewrite — not an error.
   if (newName === oldName) {
