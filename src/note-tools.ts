@@ -337,13 +337,12 @@ export const noteEditTool = defineTool({
       if (old !== undefined || all !== undefined) {
         throw new Error("Give either old (literal edit) or section, not both.");
       }
-      const result = await editSection(
-        zone,
-        name.trim(),
-        section,
-        typeof replacement === "string" ? replacement : "",
-        sectionMode(mode),
-      );
+      // Unlike a literal edit (where a missing new deletes the match), a missing
+      // new here would wipe a whole section: make clearing it explicit.
+      if (typeof replacement !== "string") {
+        throw new Error('Section mode needs new: the section\'s content (pass "" to clear it).');
+      }
+      const result = await editSection(zone, name.trim(), section, replacement, sectionMode(mode));
       return { name: result.name, changed: result.changed, edits: result.changed ? 1 : 0 };
     }
     if (typeof old !== "string" || old === "") throw new Error("old text to find is required.");

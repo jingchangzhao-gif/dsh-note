@@ -6,6 +6,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- `note_edit` in section mode without `new` (CLI: `edit --section` without
+  `--new`) replaced the section with nothing and reported success, wiping it.
+  `new` is now required there; `new: ""` still clears a section on purpose.
+
 ### Security
 
 - Dev dependencies: vitest 2.1.9 carried seven advisories (one critical: file
