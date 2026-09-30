@@ -22,6 +22,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Only contributors running the test suite were exposed: the published
   package has no runtime dependencies. The statement coverage floor is
   re-baselined for vitest 5's finer statement counting (see vitest.config.ts).
+- `.github/dependabot.yml`: grouped weekly updates for the dev toolchain
+  (minor/patch in one PR) and the GitHub Actions, so the next advisory arrives
+  as a PR instead of sitting unnoticed. `@types/node` and TypeScript majors are
+  left to deliberate upgrades.
 
 ## [0.5.0] - 2026-09-29
 

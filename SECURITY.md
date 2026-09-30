@@ -25,6 +25,9 @@ https://github.com/jingchangzhao-gif/dsh-note/security/advisories
   to an external model yourself.
 - **No runtime dependencies**: only Node.js built-ins are used, so there is
   no supply-chain surface inside the note layer.
+- **Watched dev toolchain**: the build and test tools are the only
+  dependencies. Dependabot proposes grouped weekly updates for them and for
+  the CI actions (`.github/dependabot.yml`), and `pnpm audit` is kept clean.
 - **Path-traversal safe**: note names resolve inside the target zone folder
   (`notes/` vs. `memory/`); names containing `..` that would escape the root
   are rejected.
