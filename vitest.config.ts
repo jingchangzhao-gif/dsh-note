@@ -20,8 +20,14 @@ export default defineConfig({
       // POSIX-only (chmod), so Windows legitimately covers fewer arms and runs
       // ~1 point lower: measured 83.4 on macOS, 82.4 on Windows. The floor is
       // still well above where the suite started (79.5).
+      //
+      // `statements` is 96: vitest 4+ remaps v8 coverage by AST, counting a
+      // ternary arm or a `??` operand as its own statement where vitest 2
+      // folded it into its line. The same tests over the same code measured
+      // 99.92 statements on vitest 2 and 97.75 on vitest 5 (lines unchanged at
+      // 99.92), and Windows runs lower again for the chmod reason above.
       thresholds: {
-        statements: 99,
+        statements: 96,
         branches: 81,
         functions: 99,
         lines: 99,

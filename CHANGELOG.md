@@ -6,6 +6,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Security
+
+- Dev dependencies: vitest 2.1.9 carried seven advisories (one critical: file
+  read/execution through the Vitest UI server; one high: a vite `server.fs`
+  bypass on Windows), reached through vitest, vite and esbuild. vitest and
+  `@vitest/coverage-v8` move to 5.0.2, and vite — a peer that pnpm had filled
+  with the vulnerable 6.4.2 — is declared at `^8.3.1`. `pnpm audit` is clean.
+  Only contributors running the test suite were exposed: the published
+  package has no runtime dependencies. The statement coverage floor is
+  re-baselined for vitest 5's finer statement counting (see vitest.config.ts).
+
 ## [0.5.0] - 2026-09-29
 
 Working inside notes without reading them whole: read a note's outline or one
