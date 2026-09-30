@@ -451,6 +451,9 @@ describe("cli.mjs end to end", () => {
     ]);
     const recalled = await runCli(["recall", dir, "plan.md"]);
     expect(recalled.stdout.trimEnd()).toBe("## Setup\n\npnpm\n\n## Rollout\n\nQA first\n\nship");
+    await expect(runCli(["edit", dir, "plan.md", "--section", "Setup"])).rejects.toThrow(
+      /needs --new/,
+    );
     await expect(
       runCli(["edit", dir, "plan.md", "--section", "Setup", "--all", "--new", "x"]),
     ).rejects.toThrow(/either --old \(literal edit\) or --section, not both/);

@@ -6,6 +6,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- `note_edit` in section mode without `new` (CLI: `edit --section` without
+  `--new`) replaced the section with nothing and reported success, wiping it.
+  `new` is now required there; `new: ""` still clears a section on purpose.
+
 ## [0.5.0] - 2026-09-29
 
 Working inside notes without reading them whole: read a note's outline or one

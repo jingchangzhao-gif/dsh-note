@@ -238,6 +238,8 @@ Or rewrite one section by its heading, without quoting its old text:
 included, which is what `note_recall`'s `section` returns), `append` (at the end
 of the section) or `prepend` (right under the heading). The heading must match
 exactly one heading in the note; `old`/`all` cannot be combined with `section`.
+`new` is required here — a missing one would wipe the section — so pass `""`
+explicitly to clear it.
 
 ### `note_list`
 
