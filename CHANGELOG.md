@@ -11,6 +11,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `note_edit` in section mode without `new` (CLI: `edit --section` without
   `--new`) replaced the section with nothing and reported success, wiping it.
   `new` is now required there; `new: ""` still clears a section on purpose.
+- Writing a note whose name starts with a dot, in any folder (`.draft.md`,
+  `.trash/x.md`, `log/.cache/n.md`), succeeded and reported `created`, but
+  every listing, search, stat and rename skips dot files, so the note was
+  invisible from then on. Creating one (`note_write`, `note_remember`,
+  `memory_add`, a `note_rename` target) is now refused; an existing dot-named
+  note can still be read, edited and updated.
 
 ### Security
 

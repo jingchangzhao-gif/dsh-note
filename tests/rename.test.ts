@@ -61,6 +61,9 @@ describe("rename with link rewriting", () => {
     await writeNote(dir, "a.md", "body");
     await writeNote(dir, "b.md", "body");
     await expect(renameNote(dir, "a.md", "b.md")).rejects.toThrow(/already exists/);
+    await expect(renameNote(dir, "a.md", ".hidden/a.md")).rejects.toThrow(
+      /cannot start with a dot/,
+    );
     await expect(renameNote(dir, "ghost.md", "c.md")).rejects.toThrow(/Note not found/);
     await expect(renameNote(dir, "A.md.md", "c.md")).rejects.toThrow(/\(did you mean a\.md\?\)$/);
     expect((await listNotes(dir)).map((note) => note.name)).toEqual(["a.md", "b.md"]);

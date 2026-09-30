@@ -155,6 +155,35 @@ export function notePath(zoneDir: string, name: string): string {
   return target;
 }
 
+/**
+ * notePath for a note about to be created or moved: every scan (list, search,
+ * stats, map, links) skips dot files and folders, so a name with a segment
+ * starting with "." would be written, reported as created, and never seen
+ * again. Reading or editing such a note that already exists still works.
+ */
+export function newNotePath(zoneDir: string, name: string): string {
+  const path = notePath(zoneDir, name);
+  if (
+    zoneRelativeName(zoneDir, path)
+      .split("/")
+      .some((part) => part.startsWith("."))
+  ) {
+    throw new Error(
+      `Note names cannot start with a dot, in any folder: ${name} (dot files are hidden from every listing and search)`,
+    );
+  }
+  return path;
+}
+
+/**
+ * The path a create-or-update writer may use: an existing note (even a
+ * dot-named one) can be updated, but a new one must be visible (newNotePath).
+ */
+export async function writableNotePath(zoneDir: string, name: string): Promise<string> {
+  const path = notePath(zoneDir, name);
+  return (await exists(path)) ? path : newNotePath(zoneDir, name);
+}
+
 /** Split query text into lower-case keyword tokens (keeps CJK runs intact). */
 export function tokenize(query: string): string[] {
   return query
@@ -314,7 +343,7 @@ export async function appendNote(
   name: string,
   content: string,
 ): Promise<{ name: string; path: string }> {
-  const path = notePath(zoneDir, name);
+  const path = await writableNotePath(zoneDir, name);
   await ensureDir(dirname(path));
   let raw = "";
   let fm: ParsedFrontMatter | undefined;
@@ -361,7 +390,7 @@ export async function writeNote(
   patch: FrontMeta = {},
   options: WriteOptions = {},
 ): Promise<WriteResult> {
-  const path = notePath(zoneDir, name);
+  const path = await writableNotePath(zoneDir, name);
   let existing: ParsedFrontMatter | undefined;
   try {
     existing = await readParsed(path);

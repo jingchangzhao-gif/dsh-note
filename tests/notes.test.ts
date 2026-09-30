@@ -112,6 +112,28 @@ describe("notes memory operations", () => {
     await fs.rm(dir, { recursive: true, force: true });
   });
 
+  it("refuses to create a note no listing or search could ever show", async () => {
+    const dir = await makeDir();
+    // Dot files and folders are skipped by every scan, so these used to be
+    // written, reported as created, and then vanish.
+    for (const name of [".draft.md", ".trash/planted.md", "log/.cache/n.md"]) {
+      await expect(writeNote(dir, name, "x")).rejects.toThrow(
+        /^Note names cannot start with a dot, in any folder: .* \(dot files are hidden from every listing and search\)$/,
+      );
+      await expect(appendNote(dir, name, "x")).rejects.toThrow(/cannot start with a dot/);
+    }
+    expect(await fs.readdir(dir)).toEqual([]);
+    // A dot-named note that already exists is still readable and editable.
+    await fs.writeFile(join(dir, ".old.md"), "kept");
+    expect(await readNote(dir, ".old.md")).toBe("kept");
+    await editNote(dir, ".old.md", [{ old: "kept", new: "edited" }]);
+    expect(await readNote(dir, ".old.md")).toBe("edited\n");
+    await appendNote(dir, ".old.md", "more"); // updating it is not creating it
+    await writeNote(dir, ".old.md", "rewritten");
+    expect(await readNote(dir, ".old.md")).toBe("rewritten\n");
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
   it("resolveMemoryDir defaults to ./notes under cwd", () => {
     expect(resolveMemoryDir("/w", undefined)).toBe(resolve(join("/w", "notes")));
     expect(resolveMemoryDir("/w", "/abs/dir")).toBe(resolve("/abs/dir"));

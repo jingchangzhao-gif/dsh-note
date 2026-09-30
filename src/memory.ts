@@ -27,6 +27,7 @@ import {
   noteNames,
   notePath,
   tokenize,
+  writableNotePath,
   writeTextFile,
   zoneRelativeName,
 } from "./notes";
@@ -179,7 +180,7 @@ export async function addMemoryEntry(
   const body = content.trim();
   if (!body) throw new Error("Content to remember is required.");
   const name = options.name?.trim() || DEFAULT_MEMORY_NOTE;
-  const path = notePath(zoneDir, name);
+  const path = await writableNotePath(zoneDir, name);
   const patch: FrontMeta = {};
   if (options.title) patch.title = options.title.trim();
   if (options.tags) patch.tags = formatTagsList(parseTagsList(options.tags));
