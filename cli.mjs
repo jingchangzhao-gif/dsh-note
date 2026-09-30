@@ -307,8 +307,11 @@ const handlers = {
       if (flags.old !== undefined || flags.all) {
         throw new Error("give either --old (literal edit) or --section, not both");
       }
+      if (flags.new === undefined) {
+        throw new Error('--section needs --new with the section\'s content (--new "" clears it)');
+      }
       const mode = api.sectionMode(flags.mode);
-      const result = await api.editSection(dir, name, flags.section, flags.new ?? "", mode);
+      const result = await api.editSection(dir, name, flags.section, flags.new, mode);
       if (flags.json) return { json: result };
       return {
         text: `Edited ${result.name}: section ${result.section} (${result.mode}), changed: ${result.changed}`,

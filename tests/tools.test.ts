@@ -157,6 +157,13 @@ describe("note tools", () => {
     await expect(
       run(noteEditTool, root, { name: "plan.md", section: "Setup", mode: "insert", new: "y" }),
     ).rejects.toThrow(/mode must be replace, append or prepend/);
+    // Forgetting `new` must not wipe the section; an explicit "" still clears it.
+    await expect(run(noteEditTool, root, { name: "plan.md", section: "Setup" })).rejects.toThrow(
+      /Section mode needs new: the section's content \(pass "" to clear it\)/,
+    );
+    expect((await readNoteFull(notes, "plan.md")).body).toContain("pnpm 10");
+    await run(noteEditTool, root, { name: "plan.md", section: "Setup", new: "" });
+    expect((await readNoteFull(notes, "plan.md")).body).toContain("## Setup\n\n## Rollout");
     await fs.rm(root, { recursive: true, force: true });
   });
 
