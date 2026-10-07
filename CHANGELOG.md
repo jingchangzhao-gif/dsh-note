@@ -6,6 +6,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-10-07
+
+Two data-safety fixes and a dev-toolchain security pass: a section edit can no
+longer wipe the section, a note name no listing could ever show is refused, and
+the test toolchain moves to patched vitest and vite with Dependabot watching
+for the next advisory.
+
 ### Fixed
 
 - `note_edit` in section mode without `new` (CLI: `edit --section` without
